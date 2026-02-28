@@ -1,0 +1,69 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import { UserSettingsProvider } from './context/UserSettingsContext'
+import { SocialProvider } from './context/SocialContext'
+import Layout from './components/Layout'
+import Landing from './pages/Landing'
+import ProfileDetail from './pages/ProfileDetail'
+import Admin from './pages/Admin'
+import Login from './pages/Login'
+import AuthCallback from './pages/AuthCallback'
+import NotFound from './pages/NotFound'
+import PrivacyPolicy from './pages/PrivacyPolicy'
+import Imprint from './pages/Imprint'
+import Rules from './pages/Rules'
+import ThoughtPage from './pages/ThoughtPage'
+import LoadingSpinner from './components/LoadingSpinner'
+import PigGameList from './pages/PigGameList'
+import PigGame from './pages/PigGame'
+
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return <LoadingSpinner className="min-h-screen" />
+  if (!user) return <Navigate to="/login" replace />
+  return children
+}
+
+function AdminRoute({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return <LoadingSpinner className="min-h-screen" />
+  if (!user) return <Navigate to="/login" replace />
+  if (!user.isAdmin) return <Navigate to="/" replace />
+  return children
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <UserSettingsProvider>
+      <SocialProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/legal/privacy-policy" element={<Layout><PrivacyPolicy /></Layout>} />
+            <Route path="/legal/imprint" element={<Layout><Imprint /></Layout>} />
+            <Route path="/legal/rules" element={<Layout><Rules /></Layout>} />
+            <Route path="/" element={<Layout><Landing /></Layout>} />
+            <Route path="/profiles/:slug" element={<Layout><ProfileDetail /></Layout>} />
+            <Route path="/pig" element={<Layout><PigGameList /></Layout>} />
+            <Route path="/pig/:slug" element={<PigGame />} />
+            <Route path="/thoughts/:slug" element={<ThoughtPage />} />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <Layout>
+                    <Admin />
+                  </Layout>
+                </AdminRoute>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </SocialProvider>
+      </UserSettingsProvider>
+    </AuthProvider>
+  )
+}

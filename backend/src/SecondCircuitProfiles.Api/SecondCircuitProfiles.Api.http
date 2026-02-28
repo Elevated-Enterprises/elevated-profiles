@@ -1,0 +1,81 @@
+@host = http://localhost:5246
+@token = YOUR_JWT_TOKEN_HERE
+
+### Auth - Get Discord OAuth config
+GET {{host}}/api/auth/config
+Accept: application/json
+
+### Auth - Exchange Discord code for JWT
+POST {{host}}/api/auth/callback
+Content-Type: application/json
+
+{
+  "code": "DISCORD_AUTH_CODE_HERE"
+}
+
+### Auth - Get current user
+GET {{host}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### Users - Get paginated user list (landing page)
+GET {{host}}/api/users?page=1&pageSize=12&seed=42
+Accept: application/json
+
+### Users - Search users
+GET {{host}}/api/users?search=test&page=1&pageSize=12&seed=42
+Accept: application/json
+
+### Users - Get user profile by slug
+GET {{host}}/api/users/SLUG_HERE
+Accept: application/json
+
+### Users - Update own profile
+PUT {{host}}/api/users/SLUG_HERE
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "visibility": 2,
+  "alternativeName": "My Name",
+  "country": "Germany",
+  "city": "Berlin",
+  "bio": "Hello, I love AI companions!"
+}
+
+### Companions - List companions for a user
+GET {{host}}/api/users/SLUG_HERE/companions
+Accept: application/json
+
+### Companions - Create companion
+POST {{host}}/api/users/SLUG_HERE/companions
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "visibility": 2,
+  "name": "Luna",
+  "platform": "Character.AI",
+  "role": "Best friend",
+  "bio": "My first AI companion"
+}
+
+### Companions - Update companion
+PUT {{host}}/api/users/SLUG_HERE/companions/COMPANION_ID
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Luna v2",
+  "bio": "Updated bio"
+}
+
+### Companions - Delete companion
+DELETE {{host}}/api/users/SLUG_HERE/companions/COMPANION_ID
+Authorization: Bearer {{token}}
+
+### Images - Get image
+GET {{host}}/api/images/FILENAME_HERE
+
+### Admin - Get audit log
+GET {{host}}/api/admin/audit?page=1&pageSize=20
+Authorization: Bearer {{token}}

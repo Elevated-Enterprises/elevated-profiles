@@ -1,0 +1,49 @@
+@page "/callback"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@inject ApiClient Api
+@inject AuthStateService Auth
+@inject NavigationManager Nav
+
+<h1>Authenticating...</h1>
+
+@if (_error is not null)
+{
+    <p style="color: var(--pico-color-red-500);">@_error</p>
+    <a href="/" role="button">Back to Home</a>
+}
+else
+{
+    <p aria-busy="true">Exchanging code with API...</p>
+}
+
+@code {
+    [SupplyParameterFromQuery] public string? Code { get; set; }
+
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(Code))
+        {
+            _error = "No authorization code received from Discord.";
+            return;
+        }
+
+        try
+        {
+            var result = await Api.ExchangeCode(Code);
+            if (result is null)
+            {
+                _error = "Failed to exchange code. Make sure you are a member of the Discord server.";
+                return;
+            }
+
+            Auth.Login(result.Token, result.User.Slug, result.User.DiscordUsername, result.User.IsAdmin);
+            Nav.NavigateTo("/", forceLoad: false);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error during authentication: {ex.Message}";
+        }
+    }
+}

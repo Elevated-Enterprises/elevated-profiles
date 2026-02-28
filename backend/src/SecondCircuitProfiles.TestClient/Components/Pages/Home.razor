@@ -1,0 +1,110 @@
+@page "/"
+@inject ApiClient Api
+@inject AuthStateService Auth
+
+<h1>Second Circuit Profiles - Test Client</h1>
+
+@if (!Auth.IsLoggedIn)
+{
+    <section>
+        <h2>Login</h2>
+        @if (_authUrl is not null)
+        {
+            <p>Click below to authenticate with Discord:</p>
+            <a href="@_authUrl" role="button">Login with Discord</a>
+        }
+        else if (_error is not null)
+        {
+            <p style="color: var(--pico-color-red-500);">@_error</p>
+            <button @onclick="LoadAuthConfig">Retry</button>
+        }
+        else
+        {
+            <p aria-busy="true">Loading auth config...</p>
+        }
+    </section>
+}
+else
+{
+    <section>
+        <h2>Logged in as @Auth.DiscordUsername</h2>
+        <table>
+            <tr><td><strong>Slug</strong></td><td><code>@Auth.Slug</code></td></tr>
+            <tr><td><strong>Admin</strong></td><td>@(Auth.IsAdmin ? "Yes" : "No")</td></tr>
+        </table>
+        <div role="group">
+            <a href="/my-profile" role="button">Edit Profile</a>
+            <a href="/my-companions" role="button" class="secondary">Manage Companions</a>
+            <button class="outline" @onclick="Logout">Logout</button>
+        </div>
+    </section>
+
+    @if (_me is not null)
+    {
+        <section>
+            <h3>Full Profile Data</h3>
+            <table>
+                <tr><td>Visibility</td><td>@_me.VisibilityLabel</td></tr>
+                <tr><td>Discord Name</td><td>@_me.DiscordUsername</td></tr>
+                <tr><td>Alt Name</td><td>@(_me.AlternativeName ?? "-")</td></tr>
+                <tr><td>Date of Birth</td><td>@(_me.DateOfBirth?.ToString("yyyy-MM-dd") ?? "-")</td></tr>
+                <tr><td>Country</td><td>@(_me.Country ?? "-")</td></tr>
+                <tr><td>City</td><td>@(_me.City ?? "-")</td></tr>
+                <tr><td>Bio</td><td>@(_me.Bio ?? "-")</td></tr>
+                <tr><td>Profile Image</td><td>
+                    @if (_me.ProfileImageUrl is not null)
+                    {
+                        <img src="@Api.ImageUrl(_me.ProfileImageUrl)" alt="Profile" style="max-width:100px" />
+                    }
+                    else { <span>-</span> }
+                </td></tr>
+                <tr><td>Companions</td><td>@_me.Companions.Count</td></tr>
+                <tr><td>Created</td><td>@_me.CreatedAt.ToString("g")</td></tr>
+            </table>
+        </section>
+    }
+}
+
+@code {
+    private string? _authUrl;
+    private string? _error;
+    private UserDto? _me;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Auth.IsLoggedIn)
+        {
+            await LoadAuthConfig();
+        }
+        else
+        {
+            await LoadProfile();
+        }
+    }
+
+    private async Task LoadAuthConfig()
+    {
+        try
+        {
+            var config = await Api.GetAuthConfig();
+            _authUrl = config?.AuthorizationUrl;
+            if (_authUrl is null) _error = "Could not load auth config from API.";
+        }
+        catch (Exception ex)
+        {
+            _error = $"API not reachable: {ex.Message}";
+        }
+    }
+
+    private async Task LoadProfile()
+    {
+        // Use GetUser instead of GetMe to include companions
+        if (Auth.Slug is not null)
+            _me = await Api.GetUser(Auth.Slug);
+    }
+
+    private void Logout()
+    {
+        Auth.Logout();
+    }
+}

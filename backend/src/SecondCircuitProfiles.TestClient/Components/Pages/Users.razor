@@ -1,0 +1,84 @@
+@page "/users"
+@inject ApiClient Api
+
+<h1>Browse Users</h1>
+
+<div role="group">
+    <input type="text" @bind="_search" placeholder="Search users or companions..." />
+    <button @onclick="Search">Search</button>
+    <button class="secondary" @onclick="NewSeed">New Random Order</button>
+</div>
+
+@if (_result is not null)
+{
+    <p><small>Page @_result.Page of @_result.TotalPages (@_result.TotalCount total) | Seed: @_result.Seed</small></p>
+
+    @if (_result.Items.Count == 0)
+    {
+        <p>No users found.</p>
+    }
+
+    <div class="grid">
+        @foreach (var user in _result.Items)
+        {
+            <article>
+                @if (user.ProfileImageUrl is not null)
+                {
+                    <img src="@Api.ImageUrl(user.ProfileImageUrl)" alt="@user.DisplayName"
+                         style="max-width:80px; border-radius:50%;" />
+                }
+                <h3><a href="/users/@user.Slug">@user.DisplayName</a></h3>
+                @if (user.CompanionNames.Count > 0)
+                {
+                    <p><small>Companions: @string.Join(", ", user.CompanionNames)</small></p>
+                }
+                <p><small><code>@user.Slug</code></small></p>
+            </article>
+        }
+    </div>
+
+    <div role="group">
+        <button disabled="@(_result.Page <= 1)" @onclick="PrevPage">Previous</button>
+        <button disabled="@(_result.Page >= _result.TotalPages)" @onclick="NextPage">Next</button>
+    </div>
+}
+else if (_loading)
+{
+    <p aria-busy="true">Loading...</p>
+}
+
+@code {
+    private PaginatedDto<UserListItemDto>? _result;
+    private string? _search;
+    private int _seed = Random.Shared.Next();
+    private int _page = 1;
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        _loading = true;
+        _result = await Api.GetUsers(_seed, _page, 12, _search);
+        _loading = false;
+    }
+
+    private async Task Search()
+    {
+        _page = 1;
+        await LoadUsers();
+    }
+
+    private async Task NewSeed()
+    {
+        _seed = Random.Shared.Next();
+        _page = 1;
+        await LoadUsers();
+    }
+
+    private async Task PrevPage() { _page--; await LoadUsers(); }
+    private async Task NextPage() { _page++; await LoadUsers(); }
+}

@@ -1,0 +1,31 @@
+@inherits LayoutComponentBase
+@inject AuthStateService Auth
+
+<main class="container">
+    <nav>
+        <ul>
+            <li><strong>SC Profiles Test</strong></li>
+        </ul>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/users">Users</a></li>
+            @if (Auth.IsLoggedIn)
+            {
+                <li><a href="/my-profile">My Profile</a></li>
+                <li><a href="/my-companions">Companions</a></li>
+            }
+            @if (Auth.IsAdmin)
+            {
+                <li><a href="/admin/audit">Audit</a></li>
+            }
+            @if (Auth.IsLoggedIn)
+            {
+                <li><small>@Auth.DiscordUsername (@Auth.Slug)</small></li>
+            }
+        </ul>
+    </nav>
+
+    <article>
+        @Body
+    </article>
+</main>

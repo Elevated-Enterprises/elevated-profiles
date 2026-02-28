@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SecondCircuitProfiles.Api/SecondCircuitProfiles.Api.csproj" />
+    <Project Path="src/SecondCircuitProfiles.TestClient/SecondCircuitProfiles.TestClient.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SecondCircuitProfiles.Api.Tests/SecondCircuitProfiles.Api.Tests.csproj" />
+  </Folder>
+</Solution>

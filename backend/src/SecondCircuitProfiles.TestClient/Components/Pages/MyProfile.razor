@@ -1,0 +1,162 @@
+@page "/my-profile"
+@inject ApiClient Api
+@inject AuthStateService Auth
+@inject NavigationManager Nav
+
+<h1>Edit My Profile</h1>
+
+@if (!Auth.IsLoggedIn)
+{
+    <p>Please <a href="/">log in</a> first.</p>
+}
+else if (_user is not null)
+{
+    @if (_message is not null)
+    {
+        <p style="color: var(--pico-color-green-500);">@_message</p>
+    }
+    @if (_error is not null)
+    {
+        <p style="color: var(--pico-color-red-500);">@_error</p>
+    }
+
+    <section>
+        <h3>Profile Image</h3>
+        @if (_user.ProfileImageUrl is not null)
+        {
+            <img src="@Api.ImageUrl(_user.ProfileImageUrl)" alt="Profile" style="max-width:120px; border-radius:8px;" />
+            <br />
+            <button class="outline" @onclick="DeleteImage">Delete Image</button>
+        }
+        <label>
+            Upload new image:
+            <InputFile OnChange="UploadImage" accept=".jpg,.jpeg,.png,.gif,.webp" />
+        </label>
+    </section>
+
+    <section>
+        <h3>Profile Info</h3>
+        <label>
+            Visibility
+            <select @bind="_visibility">
+                <option value="0">Private</option>
+                <option value="1">Members Only</option>
+                <option value="2">Public</option>
+            </select>
+        </label>
+        <label>
+            Alternative Name
+            <input type="text" @bind="_altName" />
+        </label>
+        <label>
+            Date of Birth
+            <input type="date" @bind="_dob" />
+        </label>
+        <div class="grid">
+            <label>
+                Country
+                <input type="text" @bind="_country" />
+            </label>
+            <label>
+                City
+                <input type="text" @bind="_city" />
+            </label>
+        </div>
+        <label>
+            Bio (Markdown)
+            <textarea rows="5" @bind="_bio"></textarea>
+        </label>
+        <button @onclick="SaveProfile" aria-busy="@_saving">Save Profile</button>
+    </section>
+}
+else
+{
+    <p aria-busy="true">Loading...</p>
+}
+
+@code {
+    private UserDto? _user;
+    private int _visibility;
+    private string? _altName;
+    private DateTime? _dob;
+    private string? _country;
+    private string? _city;
+    private string? _bio;
+    private string? _message;
+    private string? _error;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfile();
+    }
+
+    private async Task LoadProfile()
+    {
+        _user = await Api.GetMe();
+        if (_user is not null)
+        {
+            _visibility = _user.Visibility;
+            _altName = _user.AlternativeName;
+            _dob = _user.DateOfBirth;
+            _country = _user.Country;
+            _city = _user.City;
+            _bio = _user.Bio;
+        }
+    }
+
+    private async Task SaveProfile()
+    {
+        _saving = true;
+        _message = null;
+        _error = null;
+
+        var (ok, err) = await Api.UpdateUser(Auth.Slug!, new
+        {
+            visibility = _visibility,
+            alternativeName = _altName ?? "",
+            dateOfBirth = _dob,
+            country = _country ?? "",
+            city = _city ?? "",
+            bio = _bio ?? ""
+        });
+
+        if (ok)
+        {
+            _message = "Profile saved!";
+            await LoadProfile();
+        }
+        else
+        {
+            _error = $"Save failed: {err}";
+        }
+
+        _saving = false;
+    }
+
+    private async Task UploadImage(InputFileChangeEventArgs e)
+    {
+        _message = null;
+        _error = null;
+
+        using var stream = e.File.OpenReadStream(5 * 1024 * 1024);
+        var (ok, err) = await Api.UploadUserImage(Auth.Slug!, stream, e.File.Name);
+
+        if (ok)
+        {
+            _message = "Image uploaded!";
+            await LoadProfile();
+        }
+        else
+        {
+            _error = $"Upload failed: {err}";
+        }
+    }
+
+    private async Task DeleteImage()
+    {
+        await Api.DeleteUserImage(Auth.Slug!);
+        _message = "Image deleted.";
+        await LoadProfile();
+    }
+}

@@ -1,0 +1,9 @@
+**/.git
+**/bin
+**/obj
+**/node_modules
+**/.vs
+**/.idea
+**/uploads
+**/*.user
+**/*.secrets.json

@@ -1,0 +1,309 @@
+@page "/my-companions"
+@inject ApiClient Api
+@inject AuthStateService Auth
+
+<h1>My Companions</h1>
+
+@if (!Auth.IsLoggedIn)
+{
+    <p>Please <a href="/">log in</a> first.</p>
+}
+else
+{
+    @if (_message is not null)
+    {
+        <p style="color: var(--pico-color-green-500);">@_message</p>
+    }
+    @if (_error is not null)
+    {
+        <p style="color: var(--pico-color-red-500);">@_error</p>
+    }
+
+    <section>
+        <h2>Add New Companion</h2>
+        <div class="grid">
+            <label>
+                Name *
+                <input type="text" @bind="_newName" />
+            </label>
+            <label>
+                Visibility
+                <select @bind="_newVisibility">
+                    <option value="0">Private</option>
+                    <option value="1">Members Only</option>
+                    <option value="2">Public</option>
+                </select>
+            </label>
+        </div>
+        <div class="grid">
+            <label>
+                Platform
+                <input type="text" @bind="_newPlatform" placeholder="e.g. Character.AI, Replika..." />
+            </label>
+            <label>
+                Role
+                <input type="text" @bind="_newRole" placeholder="e.g. Best friend, Partner..." />
+            </label>
+        </div>
+        <label>
+            Since when? (Date)
+            <input type="date" @bind="_newDob" />
+        </label>
+        <label>
+            Bio
+            <textarea rows="3" @bind="_newBio"></textarea>
+        </label>
+        <button @onclick="CreateCompanion">Add Companion</button>
+    </section>
+
+    <hr />
+
+    @if (_companions is null)
+    {
+        <p aria-busy="true">Loading companions...</p>
+    }
+    else if (_companions.Count == 0)
+    {
+        <p>No companions yet. Add one above!</p>
+    }
+    else
+    {
+        @foreach (var comp in _companions)
+        {
+            <article>
+                <header>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; gap:1rem; align-items:center;">
+                            @if (comp.ProfileImageUrl is not null)
+                            {
+                                <img src="@Api.ImageUrl(comp.ProfileImageUrl)" alt="@comp.Name"
+                                     style="max-width:50px; border-radius:50%;" />
+                            }
+                            <strong>@comp.Name</strong>
+                            <small>(@comp.VisibilityLabel)</small>
+                        </div>
+                        <button class="outline" style="width:auto;" @onclick="() => StartEdit(comp)">
+                            @(_editingId == comp.Id ? "Cancel" : "Edit")
+                        </button>
+                    </div>
+                </header>
+
+                @if (_editingId == comp.Id)
+                {
+                    <div class="grid">
+                        <label>
+                            Name
+                            <input type="text" @bind="_editName" />
+                        </label>
+                        <label>
+                            Visibility
+                            <select @bind="_editVisibility">
+                                <option value="0">Private</option>
+                                <option value="1">Members Only</option>
+                                <option value="2">Public</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="grid">
+                        <label>
+                            Platform
+                            <input type="text" @bind="_editPlatform" />
+                        </label>
+                        <label>
+                            Role
+                            <input type="text" @bind="_editRole" />
+                        </label>
+                    </div>
+                    <label>
+                        Since when?
+                        <input type="date" @bind="_editDob" />
+                    </label>
+                    <label>
+                        Bio
+                        <textarea rows="3" @bind="_editBio"></textarea>
+                    </label>
+                    <label>
+                        Upload Image:
+                        <InputFile OnChange="(e) => UploadCompanionImage(comp.Id, e)"
+                                   accept=".jpg,.jpeg,.png,.gif,.webp" />
+                    </label>
+                    @if (comp.ProfileImageUrl is not null)
+                    {
+                        <button class="outline" style="width:auto;" @onclick="() => DeleteCompanionImage(comp.Id)">
+                            Delete Image
+                        </button>
+                    }
+                    <div role="group">
+                        <button @onclick="() => SaveEdit(comp.Id)">Save</button>
+                        <button class="secondary" @onclick="() => DeleteComp(comp.Id)">Delete Companion</button>
+                    </div>
+                }
+                else
+                {
+                    <table>
+                        <tr><td>Platform</td><td>@(comp.Platform ?? "-")</td></tr>
+                        <tr><td>Role</td><td>@(comp.Role ?? "-")</td></tr>
+                        <tr><td>Since</td><td>@(comp.DateOfBirth?.ToString("yyyy-MM-dd") ?? "-")</td></tr>
+                    </table>
+                    @if (!string.IsNullOrEmpty(comp.Bio))
+                    {
+                        <blockquote>@comp.Bio</blockquote>
+                    }
+                }
+            </article>
+        }
+    }
+}
+
+@code {
+    private List<CompanionDto>? _companions;
+    private string? _message;
+    private string? _error;
+
+    // New companion form
+    private string _newName = "";
+    private int _newVisibility;
+    private string? _newPlatform;
+    private string? _newRole;
+    private DateTime? _newDob;
+    private string? _newBio;
+
+    // Edit form
+    private string? _editingId;
+    private string _editName = "";
+    private int _editVisibility;
+    private string? _editPlatform;
+    private string? _editRole;
+    private DateTime? _editDob;
+    private string? _editBio;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCompanions();
+    }
+
+    private async Task LoadCompanions()
+    {
+        if (Auth.Slug is not null)
+            _companions = await Api.GetCompanions(Auth.Slug);
+    }
+
+    private async Task CreateCompanion()
+    {
+        _message = null;
+        _error = null;
+
+        if (string.IsNullOrWhiteSpace(_newName))
+        {
+            _error = "Name is required.";
+            return;
+        }
+
+        var (ok, err) = await Api.CreateCompanion(Auth.Slug!, new
+        {
+            name = _newName,
+            visibility = _newVisibility,
+            platform = _newPlatform,
+            role = _newRole,
+            dateOfBirth = _newDob,
+            bio = _newBio
+        });
+
+        if (ok)
+        {
+            _message = $"Companion '{_newName}' created!";
+            _newName = "";
+            _newPlatform = null;
+            _newRole = null;
+            _newDob = null;
+            _newBio = null;
+            _newVisibility = 0;
+            await LoadCompanions();
+        }
+        else
+        {
+            _error = $"Create failed: {err}";
+        }
+    }
+
+    private void StartEdit(CompanionDto comp)
+    {
+        if (_editingId == comp.Id)
+        {
+            _editingId = null;
+            return;
+        }
+        _editingId = comp.Id;
+        _editName = comp.Name;
+        _editVisibility = comp.Visibility;
+        _editPlatform = comp.Platform;
+        _editRole = comp.Role;
+        _editDob = comp.DateOfBirth;
+        _editBio = comp.Bio;
+    }
+
+    private async Task SaveEdit(string id)
+    {
+        _message = null;
+        _error = null;
+
+        var (ok, err) = await Api.UpdateCompanion(Auth.Slug!, id, new
+        {
+            name = _editName,
+            visibility = _editVisibility,
+            platform = _editPlatform,
+            role = _editRole,
+            dateOfBirth = _editDob,
+            bio = _editBio
+        });
+
+        if (ok)
+        {
+            _message = "Companion updated!";
+            _editingId = null;
+            await LoadCompanions();
+        }
+        else
+        {
+            _error = $"Update failed: {err}";
+        }
+    }
+
+    private async Task DeleteComp(string id)
+    {
+        _message = null;
+        var ok = await Api.DeleteCompanion(Auth.Slug!, id);
+        if (ok)
+        {
+            _message = "Companion deleted.";
+            _editingId = null;
+            await LoadCompanions();
+        }
+    }
+
+    private async Task UploadCompanionImage(string id, InputFileChangeEventArgs e)
+    {
+        _message = null;
+        _error = null;
+
+        using var stream = e.File.OpenReadStream(5 * 1024 * 1024);
+        var (ok, err) = await Api.UploadCompanionImage(Auth.Slug!, id, stream, e.File.Name);
+
+        if (ok)
+        {
+            _message = "Image uploaded!";
+            await LoadCompanions();
+        }
+        else
+        {
+            _error = $"Upload failed: {err}";
+        }
+    }
+
+    private async Task DeleteCompanionImage(string id)
+    {
+        await Api.DeleteCompanionImage(Auth.Slug!, id);
+        _message = "Image deleted.";
+        await LoadCompanions();
+    }
+}

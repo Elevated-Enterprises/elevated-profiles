@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✨</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Second Circuit Profiles</title>
+    <!-- Apply persisted UI preferences before first paint to avoid flash -->
+    <script>
+      (function () {
+        if (localStorage.getItem('sc_dark_mode') === 'true') {
+          document.documentElement.classList.add('dark');
+        }
+        if (localStorage.getItem('sc_dyslexic_font') === 'true') {
+          document.documentElement.classList.add('font-dyslexic');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

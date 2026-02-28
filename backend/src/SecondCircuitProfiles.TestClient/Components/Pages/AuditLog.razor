@@ -1,0 +1,73 @@
+@page "/admin/audit"
+@inject ApiClient Api
+@inject AuthStateService Auth
+
+<h1>Admin Audit Log</h1>
+
+@if (!Auth.IsAdmin)
+{
+    <p>Admin access required.</p>
+}
+else if (_result is not null)
+{
+    <p><small>Page @_result.Page of @_result.TotalPages (@_result.TotalCount total entries)</small></p>
+
+    @if (_result.Items.Count == 0)
+    {
+        <p>No audit log entries yet.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Admin</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in _result.Items)
+                {
+                    <tr>
+                        <td><small>@entry.Timestamp.ToString("g")</small></td>
+                        <td>@entry.AdminDiscordUsername</td>
+                        <td><code>@entry.Action</code></td>
+                        <td>@entry.TargetType / <code>@entry.TargetId</code></td>
+                        <td><small>@(entry.Details ?? "-")</small></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <div role="group">
+        <button disabled="@(_page <= 1)" @onclick="PrevPage">Previous</button>
+        <button disabled="@(_result.Page >= _result.TotalPages)" @onclick="NextPage">Next</button>
+    </div>
+}
+else
+{
+    <p aria-busy="true">Loading...</p>
+}
+
+@code {
+    private PaginatedDto<AuditLogEntryDto>? _result;
+    private int _page = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Auth.IsAdmin)
+            await LoadAudit();
+    }
+
+    private async Task LoadAudit()
+    {
+        _result = await Api.GetAuditLog(_page);
+    }
+
+    private async Task PrevPage() { _page--; await LoadAudit(); }
+    private async Task NextPage() { _page++; await LoadAudit(); }
+}

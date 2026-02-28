@@ -1,0 +1,84 @@
+@page "/users/{Slug}"
+@inject ApiClient Api
+
+<h1>User Profile</h1>
+
+@if (_user is not null)
+{
+    <section>
+        <hgroup>
+            <h2>@(_user.AlternativeName ?? _user.DiscordUsername)</h2>
+            <p>@_user.DiscordUsername | @_user.VisibilityLabel | Slug: <code>@_user.Slug</code></p>
+        </hgroup>
+
+        @if (_user.ProfileImageUrl is not null)
+        {
+            <img src="@Api.ImageUrl(_user.ProfileImageUrl)" alt="Profile" style="max-width:150px; border-radius:8px;" />
+        }
+
+        <table>
+            <tr><td>Date of Birth</td><td>@(_user.DateOfBirth?.ToString("yyyy-MM-dd") ?? "-")</td></tr>
+            <tr><td>Country</td><td>@(_user.Country ?? "-")</td></tr>
+            <tr><td>City</td><td>@(_user.City ?? "-")</td></tr>
+        </table>
+
+        @if (!string.IsNullOrEmpty(_user.Bio))
+        {
+            <h3>About</h3>
+            <blockquote>@_user.Bio</blockquote>
+        }
+    </section>
+
+    @if (_user.Companions.Count > 0)
+    {
+        <section>
+            <h3>Companions (@_user.Companions.Count)</h3>
+            @foreach (var comp in _user.Companions)
+            {
+                <article>
+                    <div style="display:flex; gap:1rem; align-items:center;">
+                        @if (comp.ProfileImageUrl is not null)
+                        {
+                            <img src="@Api.ImageUrl(comp.ProfileImageUrl)" alt="@comp.Name"
+                                 style="max-width:60px; border-radius:50%;" />
+                        }
+                        <div>
+                            <h4 style="margin-bottom:0;">@comp.Name</h4>
+                            <small>@comp.VisibilityLabel</small>
+                        </div>
+                    </div>
+                    <table>
+                        <tr><td>Platform</td><td>@(comp.Platform ?? "-")</td></tr>
+                        <tr><td>Role</td><td>@(comp.Role ?? "-")</td></tr>
+                        <tr><td>Since</td><td>@(comp.DateOfBirth?.ToString("yyyy-MM-dd") ?? "-")</td></tr>
+                    </table>
+                    @if (!string.IsNullOrEmpty(comp.Bio))
+                    {
+                        <blockquote>@comp.Bio</blockquote>
+                    }
+                </article>
+            }
+        </section>
+    }
+}
+else if (_loading)
+{
+    <p aria-busy="true">Loading profile...</p>
+}
+else
+{
+    <p>User not found or not visible.</p>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private UserDto? _user;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _user = await Api.GetUser(Slug);
+        _loading = false;
+    }
+}
