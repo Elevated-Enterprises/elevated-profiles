@@ -4,9 +4,11 @@ import Navbar from './Navbar'
 import CookieBanner from './CookieBanner'
 import LoginNudgeModal from './LoginNudgeModal'
 import { useAuth } from '../context/AuthContext'
+import { useRules } from '../context/RulesContext'
 
 export default function Layout({ children }) {
   const { sessionExpired, dismissSessionExpired } = useAuth()
+  const { unreadCount } = useRules()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -59,8 +61,13 @@ export default function Layout({ children }) {
             >
               Discord
             </a>
-            <Link to="/legal/rules" className="hover:text-stone-600 dark:hover:text-stone-400 transition-colors">
+            <Link to="/legal/rules" className="relative hover:text-stone-600 dark:hover:text-stone-400 transition-colors inline-flex items-center gap-1">
               Rules
+              {unreadCount > 0 && (
+                <span className="inline-flex items-center justify-center h-3.5 w-3.5 rounded-full bg-amber-500 text-white text-[9px] font-bold leading-none">
+                  !
+                </span>
+              )}
             </Link>
             <Link to="/legal/privacy-policy" className="hover:text-stone-600 dark:hover:text-stone-400 transition-colors">
               Privacy Policy

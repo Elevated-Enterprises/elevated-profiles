@@ -173,5 +173,7 @@ export const createRule = (data) => api.post('/api/rules', data)
 export const updateRule = (id, data) => api.put(`/api/rules/${id}`, data)
 export const deleteRule = (id) => api.delete(`/api/rules/${id}`)
 export const reorderRules = (ruleIds) => api.put('/api/rules/order', { ruleIds })
+export const markRuleRead = (id) => api.post(`/api/rules/${id}/read`)
+export const getRulesUnreadCount = () => api.get('/api/rules/unread-count')
 
 export default api

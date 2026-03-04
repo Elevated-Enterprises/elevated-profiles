@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { UserSettingsProvider } from './context/UserSettingsContext'
 import { SocialProvider } from './context/SocialContext'
+import { RulesProvider } from './context/RulesContext'
 import Layout from './components/Layout'
 import Landing from './pages/Landing'
 import ProfileDetail from './pages/ProfileDetail'
@@ -39,6 +40,7 @@ export default function App() {
     <AuthProvider>
       <UserSettingsProvider>
       <SocialProvider>
+      <RulesProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -75,6 +77,7 @@ export default function App() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+      </RulesProvider>
       </SocialProvider>
       </UserSettingsProvider>
     </AuthProvider>

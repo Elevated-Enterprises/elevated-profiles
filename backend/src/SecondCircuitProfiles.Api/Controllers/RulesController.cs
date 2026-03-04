@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SecondCircuitProfiles.Api.DTOs;
@@ -13,16 +14,37 @@ public class RulesController(IRuleService ruleService) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetRules()
     {
-        var rules = await ruleService.GetAll();
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var rules = await ruleService.GetAll(userId);
         return Ok(rules);
+    }
+
+    // Literal route must be declared before the {id} route to avoid ambiguity
+    [Authorize]
+    [HttpGet("unread-count")]
+    public async Task<IActionResult> GetUnreadCount()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+        var count = await ruleService.GetUnreadCountAsync(userId);
+        return Ok(new { count });
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetRule(string id)
     {
-        var rule = await ruleService.GetById(id);
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var rule = await ruleService.GetById(id, userId);
         if (rule == null) return NotFound();
         return Ok(rule);
+    }
+
+    [Authorize]
+    [HttpPost("{id}/read")]
+    public async Task<IActionResult> MarkRead(string id)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+        await ruleService.MarkReadAsync(userId, id);
+        return NoContent();
     }
 
     [Authorize(Policy = "RequireAdmin")]

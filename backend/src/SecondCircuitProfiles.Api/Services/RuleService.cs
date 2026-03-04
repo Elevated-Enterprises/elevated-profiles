@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using MongoDB.Driver;
 using SecondCircuitProfiles.Api.DTOs;
 using SecondCircuitProfiles.Api.Models;
@@ -6,16 +7,35 @@ namespace SecondCircuitProfiles.Api.Services;
 
 public class RuleService(MongoDbContext db) : IRuleService
 {
-    public async Task<List<RuleResponse>> GetAll()
+    public async Task<List<RuleResponse>> GetAll(string? userId = null)
     {
         var rules = await db.Rules.Find(_ => true).SortBy(r => r.SortOrder).ToListAsync();
-        return rules.Select(MapToResponse).ToList();
+
+        if (userId == null)
+            return rules.Select(r => MapToResponse(r)).ToList();
+
+        var reads = await db.RuleReads.Find(r => r.UserId == userId).ToListAsync();
+        var readMap = reads.ToDictionary(r => r.RuleId, r => r.ReadAt);
+
+        return rules.Select(r => MapToResponse(r,
+            isUnread: !readMap.ContainsKey(r.Id) || readMap[r.Id] < r.UpdatedAt
+        )).ToList();
     }
 
-    public async Task<RuleResponse?> GetById(string id)
+    public async Task<RuleResponse?> GetById(string id, string? userId = null)
     {
         var rule = await db.Rules.Find(r => r.Id == id).FirstOrDefaultAsync();
-        return rule == null ? null : MapToResponse(rule);
+        if (rule == null) return null;
+
+        if (userId == null)
+            return MapToResponse(rule);
+
+        var read = await db.RuleReads
+            .Find(r => r.UserId == userId && r.RuleId == id)
+            .FirstOrDefaultAsync();
+
+        return MapToResponse(rule,
+            isUnread: read == null || read.ReadAt < rule.UpdatedAt);
     }
 
     public async Task<RuleResponse> Create(RuleRequest request)
@@ -53,7 +73,11 @@ public class RuleService(MongoDbContext db) : IRuleService
     public async Task<bool> Delete(string id)
     {
         var result = await db.Rules.DeleteOneAsync(r => r.Id == id);
-        return result.DeletedCount > 0;
+        if (result.DeletedCount == 0) return false;
+
+        // Clean up read records for this rule
+        await db.RuleReads.DeleteManyAsync(r => r.RuleId == id);
+        return true;
     }
 
     public async Task ReorderAsync(List<string> ruleIds)
@@ -70,7 +94,30 @@ public class RuleService(MongoDbContext db) : IRuleService
         await db.Rules.BulkWriteAsync(writes);
     }
 
-    private static RuleResponse MapToResponse(Rule rule) => new()
+    public async Task MarkReadAsync(string userId, string ruleId)
+    {
+        var filter = Builders<RuleRead>.Filter.And(
+            Builders<RuleRead>.Filter.Eq(r => r.UserId, userId),
+            Builders<RuleRead>.Filter.Eq(r => r.RuleId, ruleId));
+
+        var update = Builders<RuleRead>.Update
+            .Set(r => r.ReadAt, DateTime.UtcNow)
+            .SetOnInsert(r => r.UserId, userId)
+            .SetOnInsert(r => r.RuleId, ruleId);
+
+        await db.RuleReads.UpdateOneAsync(filter, update, new UpdateOptions { IsUpsert = true });
+    }
+
+    public async Task<int> GetUnreadCountAsync(string userId)
+    {
+        var rules = await db.Rules.Find(_ => true).ToListAsync();
+        var reads = await db.RuleReads.Find(r => r.UserId == userId).ToListAsync();
+        var readMap = reads.ToDictionary(r => r.RuleId, r => r.ReadAt);
+
+        return rules.Count(r => !readMap.ContainsKey(r.Id) || readMap[r.Id] < r.UpdatedAt);
+    }
+
+    private static RuleResponse MapToResponse(Rule rule, bool? isUnread = null) => new()
     {
         Id = rule.Id,
         Title = rule.Title,
@@ -79,5 +126,6 @@ public class RuleService(MongoDbContext db) : IRuleService
         SortOrder = rule.SortOrder,
         CreatedAt = rule.CreatedAt,
         UpdatedAt = rule.UpdatedAt,
+        IsUnread = isUnread,
     };
 }

@@ -25,6 +25,7 @@ public class MongoDbContext
     public IMongoCollection<FeedEvent> FeedEvents { get; }
     public IMongoCollection<PigGame> PigGames { get; }
     public IMongoCollection<Rule> Rules { get; }
+    public IMongoCollection<RuleRead> RuleReads { get; }
 
     public MongoDbContext(IOptions<MongoDbSettings> settings)
     {
@@ -49,6 +50,7 @@ public class MongoDbContext
         FeedEvents = database.GetCollection<FeedEvent>("feed_events");
         PigGames = database.GetCollection<PigGame>("pig_games");
         Rules = database.GetCollection<Rule>("rules");
+        RuleReads = database.GetCollection<RuleRead>("rule_reads");
 
         EnsureIndexes();
     }
@@ -161,5 +163,11 @@ public class MongoDbContext
 
         Rules.Indexes.CreateOne(new CreateIndexModel<Rule>(
             Builders<Rule>.IndexKeys.Ascending(r => r.SortOrder)));
+
+        RuleReads.Indexes.CreateOne(new CreateIndexModel<RuleRead>(
+            Builders<RuleRead>.IndexKeys
+                .Ascending(r => r.UserId)
+                .Ascending(r => r.RuleId),
+            new CreateIndexOptions { Unique = true }));
     }
 }

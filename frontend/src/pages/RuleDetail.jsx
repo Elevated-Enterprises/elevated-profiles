@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import { getRuleById } from '../lib/api'
+import { useAuth } from '../context/AuthContext'
+import { useRules } from '../context/RulesContext'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 function headingId(text) {
@@ -44,16 +46,24 @@ const markdownComponents = {
 
 export default function RuleDetail() {
   const { id } = useParams()
+  const { user } = useAuth()
+  const { markRead } = useRules()
   const [rule, setRule] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     getRuleById(id)
-      .then((res) => setRule(res.data))
+      .then((res) => {
+        setRule(res.data)
+        // Mark as read for logged-in users (only if currently unread)
+        if (user && res.data.isUnread) {
+          markRead(id)
+        }
+      })
       .catch(() => setError('This rule could not be found.'))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, user])
 
   if (loading) return <LoadingSpinner className="py-20" />
 
@@ -77,7 +87,12 @@ export default function RuleDetail() {
       </Link>
 
       <h1 className="text-3xl font-bold text-stone-800 dark:text-stone-100 mt-4 mb-2">{rule.title}</h1>
-      <p className="text-stone-500 dark:text-stone-400 mb-6 text-base">{rule.summary}</p>
+      <div className="flex items-center gap-3 mb-6">
+        <p className="text-stone-500 dark:text-stone-400 text-base">{rule.summary}</p>
+        <span className="text-xs text-stone-400 dark:text-stone-500 shrink-0">
+          Updated {new Date(rule.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+        </span>
+      </div>
 
       {toc.length > 0 && (
         <nav className="bg-stone-50 dark:bg-stone-800/50 rounded-xl border border-stone-100 dark:border-stone-700 p-4 mb-8">

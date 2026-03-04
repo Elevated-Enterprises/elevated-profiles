@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useUserSettings } from '../context/UserSettingsContext'
+import { useRules } from '../context/RulesContext'
 
 export default function Navbar() {
   const { user, logout } = useAuth()
   const { settings, updateSetting } = useUserSettings()
+  const { unreadCount } = useRules()
   const isDark = settings.darkMode === 'true'
   const isDyslexic = settings.dyslexicFont === 'true'
 
@@ -17,6 +19,18 @@ export default function Navbar() {
           </Link>
           <Link to="/pig" className="text-sm font-medium text-stone-500 dark:text-stone-400 hover:text-amber-700 dark:hover:text-amber-400 transition-colors flex items-center gap-1">
             🎲 Pig
+          </Link>
+          <Link
+            to="/legal/rules"
+            className="relative text-sm font-medium text-stone-500 dark:text-stone-400 hover:text-amber-700 dark:hover:text-amber-400 transition-colors"
+          >
+            Rules
+            {unreadCount > 0 && (
+              <span className="absolute -top-1.5 -right-2.5 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+              </span>
+            )}
           </Link>
         </div>
         <div className="flex items-center gap-3">

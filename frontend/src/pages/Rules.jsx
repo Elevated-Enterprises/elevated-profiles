@@ -40,9 +40,21 @@ export default function Rules() {
             to={`/legal/rules/${rule.id}`}
             className="block bg-white dark:bg-stone-800 rounded-xl border border-stone-100 dark:border-stone-700 p-5 hover:border-amber-300 dark:hover:border-amber-600 transition-colors group"
           >
-            <h2 className="text-base font-semibold text-stone-800 dark:text-stone-100 mb-1 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
-              {rule.title}
-            </h2>
+            <div className="flex items-start justify-between gap-3 mb-1">
+              <h2 className="text-base font-semibold text-stone-800 dark:text-stone-100 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
+                {rule.title}
+              </h2>
+              <div className="flex items-center gap-2 shrink-0">
+                {rule.isUnread && (
+                  <span className="text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full">
+                    Updated
+                  </span>
+                )}
+                <span className="text-xs text-stone-400 dark:text-stone-500">
+                  {new Date(rule.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+            </div>
             <p className="text-sm text-stone-600 dark:text-stone-300 leading-relaxed">{rule.summary}</p>
           </Link>
         ))}
