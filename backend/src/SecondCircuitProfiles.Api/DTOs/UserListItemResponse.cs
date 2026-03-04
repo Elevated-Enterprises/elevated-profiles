@@ -16,4 +16,5 @@ public class UserListItemResponse
     public bool IsAmbassador { get; set; }
     public string? AmbassadorCommunityName { get; set; }
     public string? Status { get; set; }
+    public bool IsOnline { get; set; }
 }

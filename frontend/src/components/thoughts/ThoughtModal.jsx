@@ -210,6 +210,14 @@ export default function ThoughtModal({ thoughtId, onClose }) {
               </div>
             </div>
 
+            {/* Read stats */}
+            {(thought.readCount > 0 || thought.uniqueReaderCount > 0) && (
+              <div className="flex gap-4 text-xs text-gray-600 mb-4">
+                <span title="Total reads">👁 {thought.readCount} read{thought.readCount !== 1 ? 's' : ''}</span>
+                <span title="Unique readers">👤 {thought.uniqueReaderCount} unique reader{thought.uniqueReaderCount !== 1 ? 's' : ''}</span>
+              </div>
+            )}
+
             {/* Comments */}
             <div className="border-t border-gray-800 pt-4">
               <h3 className="text-sm font-semibold text-gray-400 mb-4">

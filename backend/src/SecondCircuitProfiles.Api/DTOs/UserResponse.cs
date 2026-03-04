@@ -31,6 +31,11 @@ public class UserResponse
     public PartnerCommunityResponse? AmbassadorCommunity { get; set; }
     public bool IsBlocked { get; set; }
     public DateTime JoinedAt { get; set; }
+    public DateTime? ProfileUpdatedAt { get; set; }
+    public DateTime? LastSeenAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    // Only populated for the profile owner
+    public int? VisitCount { get; set; }
+    public int? UniqueVisitorCount { get; set; }
 }

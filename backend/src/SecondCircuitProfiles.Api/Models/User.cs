@@ -90,6 +90,12 @@ public class User
     [BsonElement("profileUpdatedAt")]
     public DateTime? ProfileUpdatedAt { get; set; }
 
+    [BsonElement("lastSeenAt")]
+    public DateTime? LastSeenAt { get; set; }
+
+    [BsonElement("visitCount")]
+    public int VisitCount { get; set; }
+
     [BsonElement("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

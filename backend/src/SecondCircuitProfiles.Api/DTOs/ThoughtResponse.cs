@@ -17,6 +17,8 @@ public class ThoughtResponse
     public bool IsOwnThought { get; set; }
     public List<CommentResponse> Comments { get; set; } = [];
     public List<ReactionGroupResponse> Reactions { get; set; } = [];
+    public int ReadCount { get; set; }
+    public int UniqueReaderCount { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

@@ -48,9 +48,10 @@ function getInitials(name) {
 }
 
 export default function ProfileCard({ profile }) {
-  const { slug, displayName, profileImageUrl, companionNames, alignment, isAdmin, hasCommunityRoles, primaryCompanionName, isAmbassador, ambassadorCommunityName, status } = profile
+  const { slug, displayName, profileImageUrl, companionNames, alignment, isAdmin, hasCommunityRoles, primaryCompanionName, isAmbassador, ambassadorCommunityName, status, isOnline } = profile
   const [colorA, colorB] = getAvatarGradient(displayName)
   const initials = getInitials(displayName)
+  const hasStatus = status && status.trim().length > 0
 
   return (
     <Link to={`/profiles/${slug}`} className="block group relative">
@@ -79,6 +80,18 @@ export default function ProfileCard({ profile }) {
             <div className="absolute top-1.5 left-1.5 bg-teal-500 rounded-full w-6 h-6 flex items-center justify-center text-sm shadow leading-none" title={ambassadorCommunityName ? `Ambassador of ${ambassadorCommunityName}` : 'Ambassador'}>
               🕊️
             </div>
+          )}
+
+          {/* Thought bubble — visible when user has a status */}
+          {hasStatus && (
+            <div className="absolute top-1.5 right-1.5 bg-gray-800/90 border border-yellow-600/40 rounded-full w-6 h-6 flex items-center justify-center text-xs shadow leading-none" title={status}>
+              💭
+            </div>
+          )}
+
+          {/* Online indicator — green dot bottom-left */}
+          {isOnline && (
+            <div className="absolute bottom-1.5 left-1.5 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-white dark:border-stone-800 shadow" title="Online" />
           )}
 
           {hasCommunityRoles && (

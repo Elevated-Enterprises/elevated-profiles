@@ -56,6 +56,21 @@ function formatJoinDate(dateStr) {
   return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return null
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}d ago`
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months}mo ago`
+  return `${Math.floor(months / 12)}y ago`
+}
+
 function SectionEditButton({ onClick, label = 'Edit' }) {
   return (
     <button
@@ -400,7 +415,29 @@ export default function ProfileDetail() {
             {user.joinedAt && (
               <span className="text-stone-400 dark:text-stone-500">Joined {formatJoinDate(user.joinedAt)}</span>
             )}
+            {user.lastSeenAt && (
+              <span className="text-stone-400 dark:text-stone-500" title={new Date(user.lastSeenAt).toLocaleString()}>
+                Last online {formatRelativeTime(user.lastSeenAt)}
+              </span>
+            )}
+            {user.profileUpdatedAt && (
+              <span className="text-stone-400 dark:text-stone-500" title={new Date(user.profileUpdatedAt).toLocaleString()}>
+                Profile updated {formatRelativeTime(user.profileUpdatedAt)}
+              </span>
+            )}
           </div>
+
+          {/* Profile visit stats — only visible to the owner */}
+          {isOwn && (user.visitCount > 0 || user.uniqueVisitorCount > 0) && (
+            <div className="mb-4 flex gap-4 text-xs text-stone-400 dark:text-stone-500">
+              <span title="Total visits to your profile">
+                👁 {user.visitCount ?? 0} visit{user.visitCount !== 1 ? 's' : ''}
+              </span>
+              <span title="Unique members who visited your profile">
+                👤 {user.uniqueVisitorCount ?? 0} unique visitor{user.uniqueVisitorCount !== 1 ? 's' : ''}
+              </span>
+            </div>
+          )}
 
           {/* Status */}
           {isOwn ? (

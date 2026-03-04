@@ -36,6 +36,9 @@ public class Thought
     [BsonElement("isHidden")]
     public bool IsHidden { get; set; } = false;
 
+    [BsonElement("readCount")]
+    public int ReadCount { get; set; }
+
     [BsonElement("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

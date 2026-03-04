@@ -202,6 +202,41 @@ public class UserService(
         return await GetBySlug(slug);
     }
 
+    public async Task UpdateLastSeen(string userId)
+    {
+        await db.Users.UpdateOneAsync(
+            u => u.Id == userId,
+            Builders<User>.Update.Set(u => u.LastSeenAt, DateTime.UtcNow));
+    }
+
+    public async Task TrackProfileVisit(string profileUserId, string visitorUserId)
+    {
+        // Increment total visit counter
+        await db.Users.UpdateOneAsync(
+            u => u.Id == profileUserId,
+            Builders<User>.Update.Inc(u => u.VisitCount, 1));
+
+        // Record unique visitor (ignore duplicate key)
+        try
+        {
+            await db.ProfileVisits.InsertOneAsync(new Models.ProfileVisit
+            {
+                ProfileUserId = profileUserId,
+                VisitorUserId = visitorUserId,
+                VisitedAt = DateTime.UtcNow
+            });
+        }
+        catch (MongoDB.Driver.MongoWriteException) { }
+    }
+
+    public async Task<(int visitCount, int uniqueVisitorCount)> GetProfileVisitStats(string profileUserId)
+    {
+        var user = await db.Users.Find(u => u.Id == profileUserId).FirstOrDefaultAsync();
+        var unique = (int)await db.ProfileVisits.CountDocumentsAsync(
+            v => v.ProfileUserId == profileUserId);
+        return (user?.VisitCount ?? 0, unique);
+    }
+
     public async Task<User?> SetPrimaryCompanion(string slug, string? companionId)
     {
         var update = Builders<User>.Update
@@ -553,7 +588,9 @@ public class UserService(
                     PrimaryCompanionName = primaryNameByUser.GetValueOrDefault(user.Id),
                     IsAmbassador = user.AmbassadorCommunityId != null,
                     AmbassadorCommunityName = communityName,
-                    Status = statusMap.GetValueOrDefault(id)
+                    Status = statusMap.GetValueOrDefault(id),
+                    IsOnline = user.LastSeenAt.HasValue
+                        && (DateTime.UtcNow - user.LastSeenAt.Value).TotalMinutes < 5
                 };
             })
             .ToList();

@@ -81,6 +81,38 @@ public class ThoughtService(
         var comments = await commentService.GetComments(id, requestingUserId);
         var reactions = await reactionService.GetReactions(id, "thought", requestingUserId);
 
+        // Track read for authenticated users and fetch read stats
+        int readCount = thought.ReadCount;
+        int uniqueReaderCount;
+
+        if (requestingUserId != null)
+        {
+            // Atomically increment the read counter and get updated value
+            var updated = await db.Thoughts.FindOneAndUpdateAsync(
+                t => t.Id == id && !t.IsDeleted,
+                Builders<Thought>.Update.Inc(t => t.ReadCount, 1),
+                new MongoDB.Driver.FindOneAndUpdateOptions<Thought>
+                {
+                    ReturnDocument = MongoDB.Driver.ReturnDocument.After
+                });
+            readCount = updated?.ReadCount ?? readCount;
+
+            // Record unique reader (ignore duplicate key on unique index)
+            try
+            {
+                await db.ThoughtReads.InsertOneAsync(new Models.ThoughtRead
+                {
+                    ThoughtId = id,
+                    UserId = requestingUserId,
+                    ReadAt = DateTime.UtcNow
+                });
+            }
+            catch (MongoDB.Driver.MongoWriteException) { }
+        }
+
+        uniqueReaderCount = (int)await db.ThoughtReads.CountDocumentsAsync(
+            r => r.ThoughtId == id);
+
         return new ThoughtResponse
         {
             Id = thought.Id,
@@ -98,6 +130,8 @@ public class ThoughtService(
             IsOwnThought = requestingUserId != null && thought.AuthorUserId == requestingUserId,
             Comments = comments,
             Reactions = reactions,
+            ReadCount = readCount,
+            UniqueReaderCount = uniqueReaderCount,
             CreatedAt = thought.CreatedAt,
             UpdatedAt = thought.UpdatedAt
         };

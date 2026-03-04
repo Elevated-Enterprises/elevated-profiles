@@ -26,6 +26,8 @@ public class MongoDbContext
     public IMongoCollection<PigGame> PigGames { get; }
     public IMongoCollection<Rule> Rules { get; }
     public IMongoCollection<RuleRead> RuleReads { get; }
+    public IMongoCollection<ThoughtRead> ThoughtReads { get; }
+    public IMongoCollection<ProfileVisit> ProfileVisits { get; }
 
     public MongoDbContext(IOptions<MongoDbSettings> settings)
     {
@@ -51,6 +53,8 @@ public class MongoDbContext
         PigGames = database.GetCollection<PigGame>("pig_games");
         Rules = database.GetCollection<Rule>("rules");
         RuleReads = database.GetCollection<RuleRead>("rule_reads");
+        ThoughtReads = database.GetCollection<ThoughtRead>("thought_reads");
+        ProfileVisits = database.GetCollection<ProfileVisit>("profile_visits");
 
         EnsureIndexes();
     }
@@ -169,5 +173,25 @@ public class MongoDbContext
                 .Ascending(r => r.UserId)
                 .Ascending(r => r.RuleId),
             new CreateIndexOptions { Unique = true }));
+
+        ThoughtReads.Indexes.CreateMany([
+            new CreateIndexModel<ThoughtRead>(
+                Builders<ThoughtRead>.IndexKeys
+                    .Ascending(r => r.ThoughtId)
+                    .Ascending(r => r.UserId),
+                new CreateIndexOptions { Unique = true }),
+            new CreateIndexModel<ThoughtRead>(
+                Builders<ThoughtRead>.IndexKeys.Ascending(r => r.ThoughtId))
+        ]);
+
+        ProfileVisits.Indexes.CreateMany([
+            new CreateIndexModel<ProfileVisit>(
+                Builders<ProfileVisit>.IndexKeys
+                    .Ascending(v => v.ProfileUserId)
+                    .Ascending(v => v.VisitorUserId),
+                new CreateIndexOptions { Unique = true }),
+            new CreateIndexModel<ProfileVisit>(
+                Builders<ProfileVisit>.IndexKeys.Ascending(v => v.ProfileUserId))
+        ]);
     }
 }

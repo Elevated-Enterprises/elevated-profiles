@@ -21,6 +21,9 @@ public interface IUserService
     Task<User?> UpdateCommunityRoles(string slug, List<string> roleIds);
     Task<User?> SetAmbassadorCommunity(string slug, string? communityId);
     Task<User?> SetBlocked(string slug, bool blocked);
+    Task UpdateLastSeen(string userId);
+    Task TrackProfileVisit(string profileUserId, string visitorUserId);
+    Task<(int visitCount, int uniqueVisitorCount)> GetProfileVisitStats(string profileUserId);
     Task<PaginatedResponse<UserListItemResponse>> GetUsersPage(
         int seed, int page, int pageSize, string? search,
         bool isAuthenticated, bool isAdmin,

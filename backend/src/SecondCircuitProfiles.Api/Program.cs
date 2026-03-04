@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
 using SecondCircuitProfiles.Api.Configuration;
 using SecondCircuitProfiles.Api.Hubs;
+using SecondCircuitProfiles.Api.Middleware;
 using SecondCircuitProfiles.Api.Models;
 using SecondCircuitProfiles.Api.Services;
 
@@ -199,6 +200,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<LastSeenMiddleware>();
 app.MapControllers();
 app.MapHub<PigHub>("/hubs/pig");
 

@@ -64,6 +64,7 @@ public class UsersController(
         var isAuthenticated = User.Identity?.IsAuthenticated == true;
         var isAdmin = User.FindFirstValue("is_admin") == "true";
         var currentSlug = User.FindFirstValue("slug");
+        var currentUserId = User.FindFirst("sub")?.Value;
         var isOwner = currentSlug == slug;
 
         if (!isAdmin && !isOwner)
@@ -74,10 +75,22 @@ public class UsersController(
                 return NotFound();
         }
 
+        // Track profile visit (not for own profile, not for guests)
+        if (isAuthenticated && !isOwner && currentUserId != null)
+            _ = userService.TrackProfileVisit(user.Id, currentUserId);
+
         var companions = await companionService.GetByUserId(
             user.Id, isAuthenticated, isAdmin, isOwner);
 
         var response = await BuildUserResponse(user, isOwner, isAuthenticated, isAdmin, companions);
+
+        if (isOwner)
+        {
+            var (visitCount, uniqueVisitorCount) = await userService.GetProfileVisitStats(user.Id);
+            response.VisitCount = visitCount;
+            response.UniqueVisitorCount = uniqueVisitorCount;
+        }
+
         return Ok(response);
     }
 
@@ -673,6 +686,8 @@ public class UsersController(
                 UpdatedAt = c.UpdatedAt
             }).ToList() ?? [],
             JoinedAt = joinedAt,
+            ProfileUpdatedAt = user.ProfileUpdatedAt,
+            LastSeenAt = user.LastSeenAt,
             CreatedAt = user.CreatedAt,
             UpdatedAt = user.UpdatedAt
         };
