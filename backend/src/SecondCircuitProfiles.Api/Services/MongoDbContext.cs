@@ -24,6 +24,7 @@ public class MongoDbContext
     public IMongoCollection<ThoughtSettings> ThoughtSettings { get; }
     public IMongoCollection<FeedEvent> FeedEvents { get; }
     public IMongoCollection<PigGame> PigGames { get; }
+    public IMongoCollection<Rule> Rules { get; }
 
     public MongoDbContext(IOptions<MongoDbSettings> settings)
     {
@@ -47,6 +48,7 @@ public class MongoDbContext
         ThoughtSettings = database.GetCollection<ThoughtSettings>("thought_settings");
         FeedEvents = database.GetCollection<FeedEvent>("feed_events");
         PigGames = database.GetCollection<PigGame>("pig_games");
+        Rules = database.GetCollection<Rule>("rules");
 
         EnsureIndexes();
     }
@@ -156,5 +158,8 @@ public class MongoDbContext
             new CreateIndexModel<PigGame>(
                 Builders<PigGame>.IndexKeys.Descending(g => g.LastActivity))
         ]);
+
+        Rules.Indexes.CreateOne(new CreateIndexModel<Rule>(
+            Builders<Rule>.IndexKeys.Ascending(r => r.SortOrder)));
     }
 }

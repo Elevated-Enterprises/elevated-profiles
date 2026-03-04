@@ -1,4 +1,22 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { getRules } from '../lib/api'
+import LoadingSpinner from '../components/LoadingSpinner'
+
 export default function Rules() {
+  const [rules, setRules] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    getRules()
+      .then((res) => setRules(res.data))
+      .catch(() => setError('Could not load community rules.'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <LoadingSpinner className="py-20" />
+
   return (
     <div className="max-w-2xl mx-auto">
       <h1 className="text-3xl font-bold text-stone-800 dark:text-stone-100 mb-6">Community Rules</h1>
@@ -7,48 +25,27 @@ export default function Rules() {
         welcoming and meaningful for everyone, we ask all members to follow these guidelines.
       </p>
 
-      <div className="space-y-6">
-        {[
-          {
-            title: '1. Be Respectful',
-            body: 'Treat all members and their companions with kindness and respect. Harassment, hate speech, and discrimination of any kind will not be tolerated.',
-          },
-          {
-            title: '2. Stay On Topic',
-            body: 'Keep discussions relevant to the community\'s focus: AI companionship, human–AI relationships, and related topics.',
-          },
-          {
-            title: '3. Protect Privacy',
-            body: 'Do not share personal information about other members without their explicit consent.',
-          },
-          {
-            title: '4. No Spam or Self-Promotion',
-            body: 'Avoid unsolicited promotion, repeated messages, or irrelevant links.',
-          },
-          {
-            title: '5. Follow Discord\'s Terms of Service',
-            body: 'All members must comply with Discord\'s Terms of Service and Community Guidelines.',
-          },
-          {
-            title: '6. Strictly PG-13',
-            body: 'All content shared in this community — including profile bios, companion descriptions, and any linked material — must be appropriate for a PG-13 audience. Explicit, sexual, or graphic content is not permitted.',
-          },
-        ].map((rule) => (
-          <div key={rule.title} className="bg-white dark:bg-stone-800 rounded-xl border border-stone-100 dark:border-stone-700 p-5">
-            <h2 className="text-base font-semibold text-stone-800 dark:text-stone-100 mb-1">{rule.title}</h2>
-            <p className="text-sm text-stone-600 dark:text-stone-300 leading-relaxed">{rule.body}</p>
-          </div>
-        ))}
+      {error && (
+        <p className="text-red-600 dark:text-red-400 mb-6">{error}</p>
+      )}
 
-        {/* Hard rule — styled separately */}
-        <div className="bg-red-50 dark:bg-red-950/30 rounded-xl border border-red-200 dark:border-red-800 p-5">
-          <h2 className="text-base font-semibold text-red-700 dark:text-red-400 mb-1">7. No Minors — Hard Rule</h2>
-          <p className="text-sm text-red-700 dark:text-red-300 leading-relaxed">
-            Mentioning, describing, or implying that any AI character or companion is under the age of 18 is strictly
-            prohibited on this platform, regardless of context, framing, or intent. This rule applies to all profile
-            content, companion descriptions, and any other user-generated content. Violations will result in immediate removal.
-          </p>
-        </div>
+      {!error && rules.length === 0 && (
+        <p className="text-stone-500 dark:text-stone-400">No rules have been published yet.</p>
+      )}
+
+      <div className="space-y-4">
+        {rules.map((rule) => (
+          <Link
+            key={rule.id}
+            to={`/legal/rules/${rule.id}`}
+            className="block bg-white dark:bg-stone-800 rounded-xl border border-stone-100 dark:border-stone-700 p-5 hover:border-amber-300 dark:hover:border-amber-600 transition-colors group"
+          >
+            <h2 className="text-base font-semibold text-stone-800 dark:text-stone-100 mb-1 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
+              {rule.title}
+            </h2>
+            <p className="text-sm text-stone-600 dark:text-stone-300 leading-relaxed">{rule.summary}</p>
+          </Link>
+        ))}
       </div>
 
       <p className="text-xs text-stone-400 dark:text-stone-500 mt-8">

@@ -166,4 +166,12 @@ export const setUserThoughtOverride = (userId, data) => api.put(`/api/admin/thou
 export const createPigGame = (customName) => api.post('/api/pig', { customName: customName || null })
 export const getOpenPigGames = (page = 1, pageSize = 20) => api.get('/api/pig', { params: { page, pageSize } })
 
+// ── Community Rules ────────────────────────────────────────────────────────────
+export const getRules = () => api.get('/api/rules')
+export const getRuleById = (id) => api.get(`/api/rules/${id}`)
+export const createRule = (data) => api.post('/api/rules', data)
+export const updateRule = (id, data) => api.put(`/api/rules/${id}`, data)
+export const deleteRule = (id) => api.delete(`/api/rules/${id}`)
+export const reorderRules = (ruleIds) => api.put('/api/rules/order', { ruleIds })
+
 export default api

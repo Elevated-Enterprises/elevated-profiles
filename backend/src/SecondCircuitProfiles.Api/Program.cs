@@ -40,6 +40,7 @@ builder.Services.AddSingleton<ICommentService, CommentService>();
 builder.Services.AddSingleton<IThoughtService, ThoughtService>();
 builder.Services.AddHttpClient<IDiscordService, DiscordService>();
 builder.Services.AddSingleton<IPigService, PigService>();
+builder.Services.AddSingleton<IRuleService, RuleService>();
 builder.Services.AddHostedService<PigCleanupService>();
 
 // JWT Authentication

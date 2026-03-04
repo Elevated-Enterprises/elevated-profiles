@@ -16,6 +16,8 @@ import ThoughtPage from './pages/ThoughtPage'
 import LoadingSpinner from './components/LoadingSpinner'
 import PigGameList from './pages/PigGameList'
 import PigGame from './pages/PigGame'
+import RuleDetail from './pages/RuleDetail'
+import AdminRules from './pages/AdminRules'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -44,6 +46,7 @@ export default function App() {
             <Route path="/legal/privacy-policy" element={<Layout><PrivacyPolicy /></Layout>} />
             <Route path="/legal/imprint" element={<Layout><Imprint /></Layout>} />
             <Route path="/legal/rules" element={<Layout><Rules /></Layout>} />
+            <Route path="/legal/rules/:id" element={<Layout><RuleDetail /></Layout>} />
             <Route path="/" element={<Layout><Landing /></Layout>} />
             <Route path="/profiles/:slug" element={<Layout><ProfileDetail /></Layout>} />
             <Route path="/pig" element={<Layout><PigGameList /></Layout>} />
@@ -55,6 +58,16 @@ export default function App() {
                 <AdminRoute>
                   <Layout>
                     <Admin />
+                  </Layout>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/rules"
+              element={
+                <AdminRoute>
+                  <Layout>
+                    <AdminRules />
                   </Layout>
                 </AdminRoute>
               }
