@@ -177,4 +177,13 @@ export const reorderRules = (ruleIds) => api.put('/api/rules/order', { ruleIds }
 export const markRuleRead = (id) => api.post(`/api/rules/${id}/read`)
 export const getRulesUnreadCount = () => api.get('/api/rules/unread-count')
 
+// ── Academy ──────────────────────────────────────────────────────────────────
+
+export const getAcademyIndex = () => api.get('/academy/index')
+
+export const getAcademyArticle = (path) =>
+  api.get('/academy/article', { params: { path } })
+
+export const syncAcademy = () => api.post('/academy/sync')
+
 export default api
