@@ -305,6 +305,9 @@ export default function ProfileDetail() {
                   </div>
                 )}
               </div>
+              {user.lastSeenAt && (Date.now() - new Date(user.lastSeenAt).getTime()) < 5 * 60 * 1000 && (
+                <div className="absolute top-0.5 right-0.5 w-5 h-5 bg-green-400 rounded-full border-2 border-white dark:border-stone-800 shadow" title="Online" />
+              )}
               {user.ambassadorCommunity && (
                 <div className="absolute top-0.5 left-0.5 bg-teal-500 rounded-full w-8 h-8 flex items-center justify-center text-lg shadow border-2 border-white dark:border-stone-800 leading-none" title="Ambassador">
                   🕊️

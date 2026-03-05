@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Security.Claims;
 using SecondCircuitProfiles.Api.Services;
 
 namespace SecondCircuitProfiles.Api.Middleware;
@@ -13,7 +14,7 @@ public class LastSeenMiddleware(RequestDelegate next)
     {
         await next(context);
 
-        var userId = context.User.FindFirst("sub")?.Value;
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (userId == null) return;
 
         var now = DateTime.UtcNow;

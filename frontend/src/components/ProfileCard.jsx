@@ -42,9 +42,11 @@ function getAvatarGradient(name) {
 }
 
 function getInitials(name) {
-  const parts = name.trim().split(/\s+/)
+  const clean = name.replace(/[^A-Za-z\s]/g, '').trim()
+  const parts = clean.split(/\s+/).filter(Boolean)
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
-  return name.slice(0, 2).toUpperCase()
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return '?'
 }
 
 export default function ProfileCard({ profile }) {
@@ -82,16 +84,16 @@ export default function ProfileCard({ profile }) {
             </div>
           )}
 
-          {/* Thought bubble — visible when user has a status */}
-          {hasStatus && (
-            <div className="absolute top-1.5 right-1.5 bg-gray-800/90 border border-yellow-600/40 rounded-full w-6 h-6 flex items-center justify-center text-xs shadow leading-none" title={status}>
-              💭
-            </div>
+          {/* Online indicator — green dot top-right */}
+          {isOnline && (
+            <div className="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-white dark:border-stone-800 shadow" title="Online" />
           )}
 
-          {/* Online indicator — green dot bottom-left */}
-          {isOnline && (
-            <div className="absolute bottom-1.5 left-1.5 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-white dark:border-stone-800 shadow" title="Online" />
+          {/* Thought bubble — visible when user has a status; shift left when online */}
+          {hasStatus && (
+            <div className={`absolute top-1.5 bg-gray-800/90 border border-yellow-600/40 rounded-full w-6 h-6 flex items-center justify-center text-xs shadow leading-none ${isOnline ? 'right-6' : 'right-1.5'}`} title={status}>
+              💭
+            </div>
           )}
 
           {hasCommunityRoles && (
