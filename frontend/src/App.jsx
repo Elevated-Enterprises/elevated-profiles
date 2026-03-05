@@ -19,6 +19,9 @@ import PigGameList from './pages/PigGameList'
 import PigGame from './pages/PigGame'
 import RuleDetail from './pages/RuleDetail'
 import AdminRules from './pages/AdminRules'
+import AcademyLanding from './pages/AcademyLanding'
+import AcademyCategory from './pages/AcademyCategory'
+import AcademyArticle from './pages/AcademyArticle'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -54,6 +57,9 @@ export default function App() {
             <Route path="/pig" element={<Layout><PigGameList /></Layout>} />
             <Route path="/pig/:slug" element={<PigGame />} />
             <Route path="/thoughts/:slug" element={<ThoughtPage />} />
+            <Route path="/academy" element={<Layout><AcademyLanding /></Layout>} />
+            <Route path="/academy/:category" element={<Layout><AcademyCategory /></Layout>} />
+            <Route path="/academy/:category/:article" element={<Layout><AcademyArticle /></Layout>} />
             <Route
               path="/admin"
               element={
