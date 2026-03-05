@@ -5,10 +5,10 @@ public record ArticleMetadata(
     string Description,
     string Author,
     string[] Tags,
-    DateOnly? DateCreated,
-    DateOnly? DateUpdated,
+    DateOnly? DateCreated,   // date-only; frontmatter has no time component
+    DateOnly? DateUpdated,   // date-only; frontmatter has no time component
     bool Featured,
-    string Status
+    string Status            // "draft" | "published" | "archived"
 );
 
 public record ArticleIndexEntry(
@@ -28,7 +28,7 @@ public record AcademyIndex(
     ArticleIndexEntry? FeaturedArticle,
     ArticleIndexEntry[] RecentArticles,
     AcademyCategory[] Categories,
-    DateTime? LastSyncedAt,
+    DateTime? LastSyncedAt,  // null if no sync has run yet
     int TotalArticles
 );
 
