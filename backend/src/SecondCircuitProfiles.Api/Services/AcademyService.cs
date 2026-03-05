@@ -20,7 +20,10 @@ public class AcademyService(IOptions<AcademySettings> options, ILogger<AcademySe
     : IAcademyService
 {
     private readonly AcademySettings _settings = options.Value;
-    private AcademyIndex _index = new(null, [], [], null, 0);
+    private volatile AcademyIndex _index = new(null, [], [], null, 0);
+    private static readonly Regex FrontmatterRegex = new(
+        @"^---\s*\n(.*?)\n---\s*\n?(.*)",
+        RegexOptions.Singleline | RegexOptions.Compiled);
     private readonly IDeserializer _yaml = new DeserializerBuilder()
         .WithNamingConvention(UnderscoredNamingConvention.Instance)
         .IgnoreUnmatchedProperties()
@@ -42,7 +45,7 @@ public class AcademyService(IOptions<AcademySettings> options, ILogger<AcademySe
                 Directory.Delete(clonePath, recursive: true);
 
             // Clone fresh
-            var cloneResult = await RunGit($"clone {_settings.RepoUrl} {clonePath}");
+            var cloneResult = await RunGit("clone", _settings.RepoUrl, clonePath);
             if (!cloneResult.Success)
                 return new SyncResult(false, $"git clone failed: {cloneResult.Error}", 0, DateTime.UtcNow);
 
@@ -153,7 +156,7 @@ public class AcademyService(IOptions<AcademySettings> options, ILogger<AcademySe
 
     private (ArticleMetadata Metadata, string Markdown) ParseFrontmatter(string raw)
     {
-        var match = Regex.Match(raw, @"^---\s*\n(.*?)\n---\s*\n?(.*)", RegexOptions.Singleline);
+        var match = FrontmatterRegex.Match(raw);
         if (!match.Success)
             return (DefaultMetadata(), raw);
 
@@ -175,8 +178,9 @@ public class AcademyService(IOptions<AcademySettings> options, ILogger<AcademySe
                 Status: dict.GetString("status", "draft")
             ), body.TrimStart());
         }
-        catch
+        catch (Exception ex)
         {
+            logger.LogWarning("Failed to parse YAML frontmatter: {Error}", ex.Message);
             return (DefaultMetadata(), body.TrimStart());
         }
     }
@@ -187,13 +191,16 @@ public class AcademyService(IOptions<AcademySettings> options, ILogger<AcademySe
     private static string Capitalise(string s) =>
         string.IsNullOrEmpty(s) ? s : char.ToUpper(s[0]) + s[1..];
 
-    private static async Task<(bool Success, string Error)> RunGit(string arguments)
+    private static async Task<(bool Success, string Error)> RunGit(params string[] arguments)
     {
-        var psi = new ProcessStartInfo("git", arguments)
+        var psi = new ProcessStartInfo("git")
         {
             RedirectStandardError = true,
             UseShellExecute = false,
         };
+        foreach (var arg in arguments)
+            psi.ArgumentList.Add(arg);
+
         using var process = Process.Start(psi)!;
         var stderr = await process.StandardError.ReadToEndAsync();
         await process.WaitForExitAsync();
