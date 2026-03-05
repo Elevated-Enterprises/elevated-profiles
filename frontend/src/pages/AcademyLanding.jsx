@@ -4,14 +4,14 @@ import { getAcademyIndex } from '../lib/api'
 
 function formatDate(dateStr) {
   if (!dateStr) return null
-  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 function isNew(dateCreated, days = 30) {
   if (!dateCreated) return false
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - days)
-  return new Date(dateCreated) > cutoff
+  return new Date(dateCreated + 'T00:00:00') > cutoff
 }
 
 export default function AcademyLanding() {

@@ -179,11 +179,11 @@ export const getRulesUnreadCount = () => api.get('/api/rules/unread-count')
 
 // ── Academy ──────────────────────────────────────────────────────────────────
 
-export const getAcademyIndex = () => api.get('/academy/index')
+export const getAcademyIndex = () => api.get('/api/academy/index')
 
 export const getAcademyArticle = (path) =>
-  api.get('/academy/article', { params: { path } })
+  api.get('/api/academy/article', { params: { path } })
 
-export const syncAcademy = () => api.post('/academy/sync')
+export const syncAcademy = () => api.post('/api/academy/sync')
 
 export default api

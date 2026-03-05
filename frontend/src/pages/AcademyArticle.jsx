@@ -5,7 +5,7 @@ import AcademyMarkdownRenderer from '../components/academy/AcademyMarkdownRender
 
 function formatDate(dateStr) {
   if (!dateStr) return null
-  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 export default function AcademyArticle() {
