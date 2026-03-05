@@ -9,6 +9,7 @@ import {
   getAdminEmojis, createAdminEmoji, toggleAdminEmoji,
   getAdminTags, createAdminTag, deleteAdminTag,
   getThoughtSettings, updateThoughtSettings,
+  syncAcademy,
 } from '../lib/api'
 
 function ManagedList({ title, items, onAdd, onDelete }) {
@@ -556,6 +557,47 @@ function UserManagement() {
   )
 }
 
+function AcademySyncPanel() {
+  const [syncing, setSyncing] = useState(false)
+  const [result, setResult] = useState(null)
+
+  const handleSync = async () => {
+    setSyncing(true)
+    setResult(null)
+    try {
+      const res = await syncAcademy()
+      setResult({ success: true, ...res.data })
+    } catch (err) {
+      setResult({ success: false, error: err.response?.data?.error || 'Sync failed.' })
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  return (
+    <div className="bg-white dark:bg-stone-800 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-700 p-6">
+      <h2 className="text-lg font-semibold text-stone-800 dark:text-stone-100 mb-1">Academy Content</h2>
+      <p className="text-xs text-stone-400 dark:text-stone-500 mb-4">
+        Re-clones the Academy GitHub repository and rebuilds the content index.
+      </p>
+      <button
+        onClick={handleSync}
+        disabled={syncing}
+        className="px-4 py-2 text-sm bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
+      >
+        {syncing ? 'Syncing…' : 'Sync Academy Content'}
+      </button>
+      {result && (
+        <div className={`mt-3 text-xs ${result.success ? 'text-teal-600 dark:text-teal-400' : 'text-red-500'}`}>
+          {result.success
+            ? `Synced ${result.articleCount} article${result.articleCount !== 1 ? 's' : ''} successfully.`
+            : result.error}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Admin() {
   const [skills, setSkills] = useState([])
   const [providers, setProviders] = useState([])
@@ -715,6 +757,9 @@ export default function Admin() {
       </div>
       <div className="mb-6">
         <ThoughtSettingsPanel settings={thoughtSettings} onSave={handleSaveThoughtSettings} />
+      </div>
+      <div className="mb-6">
+        <AcademySyncPanel />
       </div>
       <UserManagement />
     </div>
