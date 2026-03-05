@@ -20,6 +20,9 @@ export default function Navbar() {
           <Link to="/pig" className="text-sm font-medium text-stone-500 dark:text-stone-400 hover:text-amber-700 dark:hover:text-amber-400 transition-colors flex items-center gap-1">
             🎲 Pig
           </Link>
+          <Link to="/academy" className="text-sm font-medium text-stone-500 dark:text-stone-400 hover:text-amber-700 dark:hover:text-amber-400 transition-colors">
+            Academy
+          </Link>
           <Link
             to="/legal/rules"
             className="relative text-sm font-medium text-stone-500 dark:text-stone-400 hover:text-amber-700 dark:hover:text-amber-400 transition-colors"
