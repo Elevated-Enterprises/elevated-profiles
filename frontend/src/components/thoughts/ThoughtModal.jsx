@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getThought, getActiveEmojis, addReaction, removeReaction, setThoughtHidden } from '../../lib/api'
-import { getImageUrl } from '../../lib/api'
+import { getThought, getActiveEmojis, addReaction, removeReaction, setThoughtHidden, updateThought, getThoughtInsights, getImageUrl } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import MarkdownRenderer from '../MarkdownRenderer'
 import CommentList from './CommentList'
@@ -15,6 +14,16 @@ function formatDate(ts) {
   return new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
+function formatRelativeTime(ts) {
+  const diff = Date.now() - new Date(ts).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
+
 export default function ThoughtModal({ thoughtId, onClose }) {
   const { user } = useAuth()
   const [thought, setThought] = useState(null)
@@ -23,6 +32,18 @@ export default function ThoughtModal({ thoughtId, onClose }) {
   const [showPicker, setShowPicker] = useState(false)
   const [copied, setCopied] = useState(false)
   const copyTimeout = useRef(null)
+
+  // Edit state
+  const [editing, setEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editBody, setEditBody] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState(null)
+
+  // Insights state
+  const [showInsights, setShowInsights] = useState(false)
+  const [insights, setInsights] = useState(null)
+  const [insightsLoading, setInsightsLoading] = useState(false)
 
   const handleCopyLink = () => {
     if (!thought) return
@@ -48,6 +69,44 @@ export default function ThoughtModal({ thoughtId, onClose }) {
     loadThought()
     getActiveEmojis().then(({ data }) => setEmojis(data)).catch(() => {})
   }, [loadThought])
+
+  const handleStartEdit = () => {
+    if (!thought) return
+    setEditTitle(thought.title)
+    setEditBody(thought.body)
+    setEditError(null)
+    setEditing(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editTitle.trim()) { setEditError('Title is required.'); return }
+    setEditSaving(true)
+    setEditError(null)
+    try {
+      await updateThought(thoughtId, { title: editTitle.trim(), body: editBody.trim() })
+      setEditing(false)
+      loadThought()
+    } catch {
+      setEditError('Failed to save changes.')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  const handleLoadInsights = async () => {
+    if (insights) { setShowInsights(v => !v); return }
+    setInsightsLoading(true)
+    setShowInsights(true)
+    try {
+      const { data } = await getThoughtInsights(thoughtId)
+      setInsights(data)
+    } catch {
+      setInsights(null)
+      setShowInsights(false)
+    } finally {
+      setInsightsLoading(false)
+    }
+  }
 
   const handleReactionToggle = async (emojiKey) => {
     if (!user || !thought) return
@@ -128,6 +187,14 @@ export default function ThoughtModal({ thoughtId, onClose }) {
                   <IgnoreButton userSlug={thought.authorSlug} targetUserId={thought.authorUserId} />
                 </div>
               )}
+              {thought.isOwnThought && !editing && (
+                <button
+                  onClick={handleStartEdit}
+                  className="text-xs px-2 py-0.5 rounded border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors"
+                >
+                  Edit
+                </button>
+              )}
               {user?.isAdmin && (
                 <button
                   onClick={async () => {
@@ -148,21 +215,57 @@ export default function ThoughtModal({ thoughtId, onClose }) {
               )}
             </div>
 
-            {/* Title */}
-            <h2 className="text-xl font-bold text-white mb-4">{thought.title}</h2>
+            {/* Edit form */}
+            {editing ? (
+              <div className="mb-4 space-y-3">
+                <input
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white font-bold text-xl focus:border-yellow-600 focus:outline-none"
+                />
+                <textarea
+                  value={editBody}
+                  onChange={e => setEditBody(e.target.value)}
+                  rows={10}
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 resize-y focus:border-yellow-600 focus:outline-none"
+                />
+                {editError && <p className="text-red-400 text-sm">{editError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={editSaving || !editTitle.trim()}
+                    className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 disabled:opacity-40 text-black font-semibold rounded text-sm transition-colors"
+                  >
+                    {editSaving ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => setEditing(false)}
+                    className="px-3 py-1 text-gray-400 hover:text-gray-200 text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Title */}
+                <h2 className="text-xl font-bold text-white mb-4">{thought.title}</h2>
 
-            {/* Body */}
-            <div className="prose prose-invert prose-sm max-w-none text-gray-300 mb-4">
-              <MarkdownRenderer content={thought.body} />
-            </div>
+                {/* Body */}
+                <div className="prose prose-invert prose-sm max-w-none text-gray-300 mb-4">
+                  <MarkdownRenderer content={thought.body} />
+                </div>
+              </>
+            )}
 
             {/* Image */}
             {thought.imageUrl && (
-              <div className="mb-4">
+              <div className="mb-4 flex justify-center">
                 <img
                   src={getImageUrl(thought.imageUrl)}
                   alt=""
-                  className="w-full rounded-lg border border-gray-800 max-h-96 object-cover"
+                  className="max-w-full h-auto rounded-lg border border-gray-800"
+                  style={{ maxHeight: '32rem' }}
                 />
               </div>
             )}
@@ -212,9 +315,68 @@ export default function ThoughtModal({ thoughtId, onClose }) {
 
             {/* Read stats */}
             {(thought.readCount > 0 || thought.uniqueReaderCount > 0) && (
-              <div className="flex gap-4 text-xs text-gray-600 mb-4">
+              <div className="flex gap-4 text-xs text-gray-600 mb-4 items-center flex-wrap">
                 <span title="Total reads">👁 {thought.readCount} read{thought.readCount !== 1 ? 's' : ''}</span>
                 <span title="Unique readers">👤 {thought.uniqueReaderCount} unique reader{thought.uniqueReaderCount !== 1 ? 's' : ''}</span>
+                {thought.isOwnThought && (
+                  <button
+                    onClick={handleLoadInsights}
+                    className="text-xs text-gray-500 hover:text-yellow-400 underline transition-colors"
+                  >
+                    {showInsights ? 'Hide details' : 'Show details'}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Insights panel — only visible to thought owner */}
+            {thought.isOwnThought && showInsights && (
+              <div className="mb-4 bg-gray-900 border border-gray-800 rounded-lg p-4 text-xs space-y-4">
+                {insightsLoading ? (
+                  <p className="text-gray-500">Loading insights…</p>
+                ) : insights ? (
+                  <>
+                    {insights.reactionGroups.length > 0 && (
+                      <div>
+                        <p className="text-gray-400 font-semibold mb-2">Reactions</p>
+                        <div className="space-y-2">
+                          {insights.reactionGroups.map(g => (
+                            <div key={g.emojiKey}>
+                              <span className="text-gray-300">{g.emoji} {g.label} ({g.reactors.length})</span>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {g.reactors.map(r => (
+                                  <Link key={r.slug} to={`/profiles/${r.slug}`} onClick={onClose}
+                                    className="text-gray-500 hover:text-yellow-400 transition-colors">
+                                    {r.username}
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {insights.readers.length > 0 && (
+                      <div>
+                        <p className="text-gray-400 font-semibold mb-2">Readers ({insights.readers.length})</p>
+                        <div className="space-y-1 max-h-48 overflow-y-auto">
+                          {insights.readers.map(r => (
+                            <div key={r.slug} className="flex items-center justify-between">
+                              <Link to={`/profiles/${r.slug}`} onClick={onClose}
+                                className="text-gray-300 hover:text-yellow-400 transition-colors">
+                                {r.username}
+                              </Link>
+                              <span className="text-gray-600">{formatRelativeTime(r.readAt)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {insights.reactionGroups.length === 0 && insights.readers.length === 0 && (
+                      <p className="text-gray-600">No interactions yet.</p>
+                    )}
+                  </>
+                ) : null}
               </div>
             )}
 

@@ -9,9 +9,11 @@ function applySettings(settings) {
   // Dark mode
   if (settings.darkMode === 'true') {
     html.classList.add('dark')
+    html.style.colorScheme = 'dark'
     localStorage.setItem('sc_dark_mode', 'true')
   } else {
     html.classList.remove('dark')
+    html.style.colorScheme = 'light'
     localStorage.removeItem('sc_dark_mode')
   }
   // Dyslexic font

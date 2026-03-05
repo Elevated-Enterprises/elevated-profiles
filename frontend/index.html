@@ -10,6 +10,9 @@
       (function () {
         if (localStorage.getItem('sc_dark_mode') === 'true') {
           document.documentElement.classList.add('dark');
+          document.documentElement.style.colorScheme = 'dark';
+        } else {
+          document.documentElement.style.colorScheme = 'light';
         }
         if (localStorage.getItem('sc_dyslexic_font') === 'true') {
           document.documentElement.classList.add('font-dyslexic');

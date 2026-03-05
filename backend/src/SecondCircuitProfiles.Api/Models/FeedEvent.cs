@@ -29,6 +29,9 @@ public class FeedEvent
     [BsonElement("excerpt")]
     public string? Excerpt { get; set; }
 
+    [BsonElement("targetCommentId")]
+    public string? TargetCommentId { get; set; }
+
     [BsonElement("reactionCount")]
     public int? ReactionCount { get; set; }
 

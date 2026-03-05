@@ -26,6 +26,7 @@ const SORT_OPTIONS = [
   { value: 'name_desc', label: 'Name Z → A' },
   { value: 'joined_desc', label: 'Newest Members' },
   { value: 'profile_updated_desc', label: 'Profile Updated' },
+  { value: 'last_online_desc', label: 'Last Online' },
 ]
 
 const EXPERIENCE_LEVELS = [
@@ -62,7 +63,10 @@ export default function Landing() {
   const [seed, setSeed] = useState(null)
   const [sort, setSort] = useState(getInitialSort)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [hasProfileImage, setHasProfileImage] = useState(true) // default: with picture
+  const [hasProfileImage, setHasProfileImage] = useState(() => {
+    const saved = getCookie('sc_has_profile_image')
+    return saved === null ? true : saved === 'true'
+  })
   const [pageSize, setPageSize] = useState(getInitialPageSize)
   const [stats, setStats] = useState(null)
   const [membersExpanded, setMembersExpandedRaw] = useState(() => localStorage.getItem('sc_members_expanded') === 'true')
@@ -178,6 +182,7 @@ export default function Landing() {
   const handleRefresh = () => { setSeed(null); setPage(1); setRefreshKey((k) => k + 1) }
   const handleSortChange = (value) => { setSort(value); setCookie('sc_sort', value) }
   const handlePageSizeChange = (newSize) => { localStorage.setItem('sc_page_size', String(newSize)); setPageSize(newSize) }
+  const handleHasProfileImageChange = (checked) => { setHasProfileImage(checked); setCookie('sc_has_profile_image', String(checked)) }
   const toggleSkill = (id) => setSelectedSkillIds((prev) => prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id])
 
   const activeFilterCount =
@@ -190,7 +195,7 @@ export default function Landing() {
 
   const clearFilters = () => {
     setSelectedSkillIds([]); setLlmProviderId(''); setMinExperienceLevel('')
-    setSelectedCommunityRoleId(''); setAdminOnly(false); setHasProfileImage(true)
+    setSelectedCommunityRoleId(''); setAdminOnly(false); handleHasProfileImageChange(true)
     setAmbassadorOnly(false); setSelectedAmbassadorCommunityId('')
   }
 
@@ -235,7 +240,7 @@ export default function Landing() {
               <input
                 type="checkbox"
                 checked={hasProfileImage}
-                onChange={(e) => setHasProfileImage(e.target.checked)}
+                onChange={(e) => handleHasProfileImageChange(e.target.checked)}
                 className="rounded border-stone-300 text-amber-500 focus:ring-amber-300"
               />
               With profile picture
@@ -289,7 +294,7 @@ export default function Landing() {
                   <input
                     type="checkbox"
                     checked={hasProfileImage}
-                    onChange={(e) => setHasProfileImage(e.target.checked)}
+                    onChange={(e) => handleHasProfileImageChange(e.target.checked)}
                     className="rounded border-stone-300 text-amber-500 focus:ring-amber-300"
                   />
                   <span className="text-sm text-stone-500 dark:text-stone-400 whitespace-nowrap">With profile picture</span>

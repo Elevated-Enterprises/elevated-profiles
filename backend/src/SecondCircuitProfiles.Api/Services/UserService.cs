@@ -375,7 +375,7 @@ public class UserService(
         var combinedFilter = Builders<User>.Filter.And(
             visibilityFilter, searchFilter, skillsFilter, llmFilter, imageFilter, communityRoleFilter, adminFilter, ambassadorFilter);
 
-        if (sort is "name_asc" or "name_desc" or "joined_desc" or "updated_desc" or "profile_updated_desc")
+        if (sort is "name_asc" or "name_desc" or "joined_desc" or "updated_desc" or "profile_updated_desc" or "last_online_desc")
         {
             return await GetUsersPageSorted(
                 page, pageSize, combinedFilter, isAuthenticated, isAdmin, seed, sort);
@@ -430,6 +430,34 @@ public class UserService(
         int page, int pageSize, FilterDefinition<User> combinedFilter,
         bool isAuthenticated, bool isAdmin, int seed, string sort)
     {
+        // last_online_desc: in-memory sort so nulls land at the bottom
+        if (sort == "last_online_desc")
+        {
+            var allUsers = await db.Users
+                .Find(combinedFilter)
+                .ToListAsync();
+
+            var sorted = allUsers
+                .OrderByDescending(u => u.LastSeenAt ?? DateTime.MinValue)
+                .ToList();
+
+            var totalCount = sorted.Count;
+            var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+            var pageUsers = sorted.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            var pageIds = pageUsers.Select(u => u.Id).ToList();
+            var items = await BuildListItems(pageIds, isAuthenticated, isAdmin, pageUsers);
+
+            return new PaginatedResponse<UserListItemResponse>
+            {
+                Items = items,
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                TotalPages = totalPages,
+                Seed = seed
+            };
+        }
+
         // profile_updated_desc: in-memory sort so nulls land at the bottom
         if (sort == "profile_updated_desc")
         {

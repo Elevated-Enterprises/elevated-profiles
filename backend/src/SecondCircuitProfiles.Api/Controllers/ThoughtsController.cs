@@ -213,6 +213,21 @@ public class ThoughtsController(
         return NoContent();
     }
 
+    [HttpGet("{id}/insights")]
+    [Authorize]
+    [ProducesResponseType<ThoughtInsightsResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetInsights(string id)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var insights = await thoughtService.GetThoughtInsights(id, userId);
+        if (insights == null) return NotFound();
+        return Ok(insights);
+    }
+
     [HttpGet("rate-limit")]
     [Authorize]
     [ProducesResponseType<ThoughtRateLimitResponse>(StatusCodes.Status200OK)]

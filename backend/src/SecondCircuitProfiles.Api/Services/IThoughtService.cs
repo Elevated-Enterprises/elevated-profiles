@@ -30,4 +30,5 @@ public interface IThoughtService
     Task<ThoughtResponse?> UpdateImage(string id, string userId, string? filename);
     Task<ThoughtRateLimitResponse> GetRateLimit(string userId);
     Task<bool> SetHidden(string id, bool hidden);
+    Task<ThoughtInsightsResponse?> GetThoughtInsights(string id, string requestingUserId);
 }

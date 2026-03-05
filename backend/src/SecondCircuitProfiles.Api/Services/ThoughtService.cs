@@ -85,7 +85,7 @@ public class ThoughtService(
         int readCount = thought.ReadCount;
         int uniqueReaderCount;
 
-        if (requestingUserId != null)
+        if (requestingUserId != null && requestingUserId != thought.AuthorUserId)
         {
             // Atomically increment the read counter and get updated value
             var updated = await db.Thoughts.FindOneAndUpdateAsync(
@@ -264,6 +264,80 @@ public class ThoughtService(
         var update = Builders<Thought>.Update.Set(t => t.IsHidden, hidden);
         await db.Thoughts.UpdateOneAsync(t => t.Id == id, update);
         return true;
+    }
+
+    public async Task<ThoughtInsightsResponse?> GetThoughtInsights(string id, string requestingUserId)
+    {
+        var thought = await db.Thoughts.Find(t => t.Id == id && !t.IsDeleted).FirstOrDefaultAsync();
+        if (thought == null || thought.AuthorUserId != requestingUserId) return null;
+
+        // Readers
+        var reads = await db.ThoughtReads.Find(r => r.ThoughtId == id).ToListAsync();
+        var readerUserIds = reads.Select(r => r.UserId).Distinct().ToList();
+        var readerUsers = await db.Users.Find(u => readerUserIds.Contains(u.Id)).ToListAsync();
+        var readerMap = readerUsers.ToDictionary(u => u.Id);
+
+        // For each user take only their most recent read
+        var readerEntries = reads
+            .GroupBy(r => r.UserId)
+            .Select(g =>
+            {
+                var latest = g.OrderByDescending(r => r.ReadAt).First();
+                readerMap.TryGetValue(latest.UserId, out var user);
+                return new ThoughtReaderEntry
+                {
+                    Slug = user?.Slug ?? "",
+                    Username = user?.AlternativeName ?? user?.DiscordUsername ?? "Unknown",
+                    AvatarUrl = user?.ProfileImageFilename,
+                    ReadAt = latest.ReadAt
+                };
+            })
+            .OrderByDescending(r => r.ReadAt)
+            .ToList();
+
+        // Reactions with reactors
+        var reactions = await db.Reactions
+            .Find(r => r.TargetId == id && r.TargetType == "thought")
+            .ToListAsync();
+
+        var reactorUserIds = reactions.Select(r => r.UserId).Distinct().ToList();
+        var reactorUsers = await db.Users.Find(u => reactorUserIds.Contains(u.Id)).ToListAsync();
+        var reactorMap = reactorUsers.ToDictionary(u => u.Id);
+
+        var emojiKeys = reactions.Select(r => r.EmojiKey).Distinct().ToList();
+        var emojis = await db.AvailableEmojis.Find(e => emojiKeys.Contains(e.Key)).ToListAsync();
+        var emojiDefs = emojis.ToDictionary(e => e.Key);
+
+        var reactionGroups = reactions
+            .GroupBy(r => r.EmojiKey)
+            .Select(g =>
+            {
+                emojiDefs.TryGetValue(g.Key, out var emoji);
+                return new ReactionGroupWithReactors
+                {
+                    EmojiKey = g.Key,
+                    Emoji = emoji?.Emoji ?? g.Key,
+                    Label = emoji?.Label ?? g.Key,
+                    Reactors = g.Select(r =>
+                    {
+                        reactorMap.TryGetValue(r.UserId, out var user);
+                        return new ReactionReactorEntry
+                        {
+                            Slug = user?.Slug ?? "",
+                            Username = user?.AlternativeName ?? user?.DiscordUsername ?? "Unknown",
+                            AvatarUrl = user?.ProfileImageFilename
+                        };
+                    }).ToList()
+                };
+            })
+            .OrderByDescending(g => g.Reactors.Count)
+            .ToList();
+
+        return new ThoughtInsightsResponse
+        {
+            Readers = readerEntries,
+            ReactionGroups = reactionGroups
+        };
     }
 
     private async Task<string> GenerateUniqueSlug()

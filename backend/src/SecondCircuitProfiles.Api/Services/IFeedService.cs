@@ -12,7 +12,7 @@ public interface IFeedService
         int limit = 30);
 
     Task RecordNewThought(string actorUserId, string thoughtId, string thoughtTitle, string excerpt);
-    Task RecordNewComment(string actorUserId, string thoughtId, string thoughtTitle, string excerpt);
+    Task RecordNewComment(string actorUserId, string thoughtId, string commentId, string thoughtTitle, string excerpt);
     Task RecordReactionMilestone(string thoughtId, string thoughtTitle, string authorUserId, int count);
     Task RecordStatusChange(string actorUserId, string statusText);
 }

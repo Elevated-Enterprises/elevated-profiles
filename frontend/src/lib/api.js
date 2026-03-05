@@ -123,6 +123,7 @@ export const uploadThoughtImage = (id, file) => {
 export const deleteThoughtImage = (id) => api.delete(`/api/thoughts/${id}/image`)
 export const getThoughtRateLimit = () => api.get('/api/thoughts/rate-limit')
 export const setThoughtHidden = (id, hidden) => api.patch(`/api/thoughts/${id}/hidden`, { hidden })
+export const getThoughtInsights = (id) => api.get(`/api/thoughts/${id}/insights`)
 
 // ── Comments ──────────────────────────────────────────────────────────────────
 export const getComments = (thoughtId) => api.get(`/api/thoughts/${thoughtId}/comments`)

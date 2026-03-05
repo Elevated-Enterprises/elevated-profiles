@@ -68,7 +68,7 @@ public class CommentService(
         };
         await db.Comments.InsertOneAsync(comment);
 
-        await feedService.RecordNewComment(userId, thoughtId, thought.Title, comment.Body);
+        await feedService.RecordNewComment(userId, thoughtId, comment.Id, thought.Title, comment.Body);
 
         var user = await db.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
         return (new CommentResponse

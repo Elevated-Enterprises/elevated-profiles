@@ -25,18 +25,66 @@ public class FeedService(MongoDbContext db) : IFeedService
             filterBuilder.Ne(e => e.Type, "status_change"),
             filterBuilder.In(e => e.ActorUserId, followingIds));
 
+        // Fetch a bit more than limit so filtering doesn't leave us short
         var events = await db.FeedEvents
             .Find(filter)
             .SortByDescending(e => e.CreatedAt)
-            .Limit(limit)
+            .Limit(limit * 3)
             .ToListAsync();
 
+        // Collect thought IDs to check for hidden thoughts
+        var thoughtTargetIds = events
+            .Where(e => e.TargetId != null && e.TargetType == "thought")
+            .Select(e => e.TargetId!)
+            .Distinct()
+            .ToList();
+
+        HashSet<string> hiddenThoughtIds = [];
+        if (thoughtTargetIds.Count > 0)
+        {
+            var hiddenThoughts = await db.Thoughts
+                .Find(t => thoughtTargetIds.Contains(t.Id) && (t.IsHidden || t.IsDeleted))
+                .Project(t => t.Id)
+                .ToListAsync();
+            hiddenThoughtIds = hiddenThoughts.ToHashSet();
+        }
+
+        // Collect comment IDs to check for deleted comments
+        var commentIds = events
+            .Where(e => e.Type == "new_comment" && e.TargetCommentId != null)
+            .Select(e => e.TargetCommentId!)
+            .Distinct()
+            .ToList();
+
+        HashSet<string> deletedCommentIds = [];
+        if (commentIds.Count > 0)
+        {
+            var deletedComments = await db.Comments
+                .Find(c => commentIds.Contains(c.Id) && c.IsDeleted)
+                .Project(c => c.Id)
+                .ToListAsync();
+            deletedCommentIds = deletedComments.ToHashSet();
+        }
+
+        // Filter out events for hidden/deleted thoughts and deleted comments
+        var visibleEvents = events
+            .Where(e =>
+            {
+                if (e.TargetId != null && hiddenThoughtIds.Contains(e.TargetId))
+                    return false;
+                if (e.Type == "new_comment" && e.TargetCommentId != null && deletedCommentIds.Contains(e.TargetCommentId))
+                    return false;
+                return true;
+            })
+            .Take(limit)
+            .ToList();
+
         // Enrich with actor user info
-        var actorIds = events.Select(e => e.ActorUserId).Distinct().ToList();
+        var actorIds = visibleEvents.Select(e => e.ActorUserId).Distinct().ToList();
         var actors = await db.Users.Find(u => actorIds.Contains(u.Id)).ToListAsync();
         var actorMap = actors.ToDictionary(u => u.Id);
 
-        return events.Select(e =>
+        return visibleEvents.Select(e =>
         {
             actorMap.TryGetValue(e.ActorUserId, out var actor);
             return new FeedItemResponse
@@ -71,13 +119,14 @@ public class FeedService(MongoDbContext db) : IFeedService
         });
     }
 
-    public async Task RecordNewComment(string actorUserId, string thoughtId, string thoughtTitle, string excerpt)
+    public async Task RecordNewComment(string actorUserId, string thoughtId, string commentId, string thoughtTitle, string excerpt)
     {
         await db.FeedEvents.InsertOneAsync(new FeedEvent
         {
             Type = "new_comment",
             ActorUserId = actorUserId,
             TargetId = thoughtId,
+            TargetCommentId = commentId,
             TargetType = "thought",
             TargetTitle = thoughtTitle,
             Excerpt = excerpt.Length > 150 ? excerpt[..150] + "..." : excerpt,
