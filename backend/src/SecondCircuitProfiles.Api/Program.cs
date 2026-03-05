@@ -16,6 +16,7 @@ builder.Services.Configure<DiscordSettings>(builder.Configuration.GetSection(Dis
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
 builder.Services.Configure<UploadSettings>(builder.Configuration.GetSection(UploadSettings.SectionName));
 builder.Services.Configure<CorsSettings>(builder.Configuration.GetSection(CorsSettings.SectionName));
+builder.Services.Configure<AcademySettings>(builder.Configuration.GetSection(AcademySettings.SectionName));
 
 // MongoDB
 builder.Services.AddSingleton<MongoDbContext>();
@@ -42,6 +43,7 @@ builder.Services.AddSingleton<IThoughtService, ThoughtService>();
 builder.Services.AddHttpClient<IDiscordService, DiscordService>();
 builder.Services.AddSingleton<IPigService, PigService>();
 builder.Services.AddSingleton<IRuleService, RuleService>();
+builder.Services.AddSingleton<IAcademyService, AcademyService>();
 builder.Services.AddHostedService<PigCleanupService>();
 
 // JWT Authentication
