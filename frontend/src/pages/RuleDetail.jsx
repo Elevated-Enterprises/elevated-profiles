@@ -95,23 +95,42 @@ export default function RuleDetail() {
       </div>
 
       {toc.length > 0 && (
-        <nav className="bg-stone-50 dark:bg-stone-800/50 rounded-xl border border-stone-100 dark:border-stone-700 p-4 mb-8">
-          <p className="text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500 mb-2">
-            Contents
-          </p>
-          <ul className="space-y-1">
-            {toc.map((item, i) => (
-              <li key={i} className={item.level === 3 ? 'pl-4' : ''}>
-                <a
-                  href={`#${headingId(item.text)}`}
-                  className="text-sm text-amber-700 dark:text-amber-400 hover:underline"
-                >
-                  {item.text}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <div className="fixed left-0 top-1/2 -translate-y-1/2 z-30 flex items-stretch group">
+          {/* TOC sliding panel */}
+          <div className="overflow-hidden transition-all duration-300 ease-in-out w-0 group-hover:w-60 bg-white dark:bg-stone-900 border-y border-r border-stone-200 dark:border-stone-700 rounded-r-xl shadow-xl">
+            <div className="w-60 p-4 max-h-[70vh] overflow-y-auto">
+              <p className="text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500 mb-3">
+                Contents
+              </p>
+              <ul className="space-y-1">
+                {toc.map((item, i) => (
+                  <li key={i} className={item.level === 3 ? 'pl-4' : ''}>
+                    <a
+                      href={`#${headingId(item.text)}`}
+                      className="text-sm text-amber-700 dark:text-amber-400 hover:underline leading-snug block"
+                    >
+                      {item.text}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          {/* Tab handle */}
+          <div className="flex flex-col items-center justify-center bg-amber-600 hover:bg-amber-500 transition-colors text-white rounded-r-lg px-2 py-5 shadow-lg cursor-default select-none gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-4 h-4 transition-transform duration-300 group-hover:rotate-180"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="text-xs font-bold tracking-widest [writing-mode:vertical-rl]">Contents</span>
+          </div>
+        </div>
       )}
 
       <div className="prose prose-stone dark:prose-invert max-w-none">
