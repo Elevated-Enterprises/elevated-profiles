@@ -125,6 +125,24 @@ export default function AcademyLanding() {
           No content yet. Sync the Academy to load content.
         </p>
       )}
+
+      <div className="mt-12 pt-6 border-t border-stone-200 dark:border-stone-700 text-xs text-stone-400 dark:text-stone-500 space-y-1">
+        <p>
+          This work is licensed under the{' '}
+          <strong className="text-stone-500 dark:text-stone-400">Creative Commons Attribution-NonCommercial 4.0 International License</strong>{' '}
+          (CC BY-NC 4.0).
+        </p>
+        <p>
+          <a
+            href="https://creativecommons.org/licenses/by-nc/4.0/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-stone-600 dark:hover:text-stone-300 transition-colors"
+          >
+            View full licence
+          </a>
+        </p>
+      </div>
     </div>
   )
 }

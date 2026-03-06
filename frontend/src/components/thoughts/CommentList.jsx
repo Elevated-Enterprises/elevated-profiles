@@ -32,7 +32,7 @@ export default function CommentList({ comments, onRefresh, isThoughtOwner = fals
   }
 
   if (comments.length === 0)
-    return <p className="text-sm text-gray-500 text-center py-4">No comments yet. Be the first!</p>
+    return <p className="text-sm text-stone-400 dark:text-stone-500 text-center py-4">No comments yet. Be the first!</p>
 
   return (
     <div className="space-y-4">
@@ -42,28 +42,28 @@ export default function CommentList({ comments, onRefresh, isThoughtOwner = fals
             {comment.authorAvatarUrl ? (
               <img src={getImageUrl(comment.authorAvatarUrl)} className="w-8 h-8 rounded-full object-cover" alt="" />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs text-gray-400">
+              <div className="w-8 h-8 rounded-full bg-stone-200 dark:bg-stone-700 flex items-center justify-center text-xs text-stone-500 dark:text-stone-400">
                 {comment.authorUsername?.[0]?.toUpperCase() || '?'}
               </div>
             )}
           </Link>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <Link to={`/profiles/${comment.authorSlug}`} className="text-sm font-semibold text-white hover:text-yellow-400">
+              <Link to={`/profiles/${comment.authorSlug}`} className="text-sm font-semibold text-stone-800 dark:text-white hover:text-amber-600 dark:hover:text-amber-400">
                 {comment.authorUsername}
               </Link>
-              <span className="text-xs text-gray-600">{formatRelativeTime(comment.createdAt)}</span>
+              <span className="text-xs text-stone-400 dark:text-stone-500">{formatRelativeTime(comment.createdAt)}</span>
               {(comment.isOwnComment || user?.isAdmin || isThoughtOwner) && (
                 <button
                   onClick={() => handleDelete(comment.id)}
                   disabled={deletingId === comment.id}
-                  className="text-xs text-gray-600 hover:text-red-400 transition-colors ml-auto"
+                  className="text-xs text-stone-400 dark:text-stone-500 hover:text-red-500 dark:hover:text-red-400 transition-colors ml-auto"
                 >
                   {deletingId === comment.id ? '...' : 'Delete'}
                 </button>
               )}
             </div>
-            <div className="text-sm text-gray-300 prose prose-invert prose-sm max-w-none">
+            <div className="text-sm text-stone-700 dark:text-stone-300 prose dark:prose-invert prose-sm max-w-none">
               <MarkdownRenderer content={comment.body} />
             </div>
             {comment.reactions?.length > 0 && (

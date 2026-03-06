@@ -61,11 +61,12 @@ export default function Layout({ children }) {
             >
               Discord
             </a>
-            <Link to="/legal/rules" className="relative hover:text-stone-600 dark:hover:text-stone-400 transition-colors inline-flex items-center gap-1">
+            <Link to="/legal/rules" className="relative hover:text-stone-600 dark:hover:text-stone-400 transition-colors inline-flex items-center gap-1.5">
               Rules
               {unreadCount > 0 && (
-                <span className="inline-flex items-center justify-center h-3.5 w-3.5 rounded-full bg-amber-500 text-white text-[9px] font-bold leading-none">
-                  !
+                <span className="flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
                 </span>
               )}
             </Link>

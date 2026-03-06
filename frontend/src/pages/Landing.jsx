@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getUsers, getStats, getSkills, getLlmProviders, getCommunityRoles, getPartnerCommunities, getThoughts, getAdminTags } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { getPreference, setPreference } from '../lib/prefs'
 import ProfileCard from '../components/ProfileCard'
 import SearchBar from '../components/SearchBar'
 import Pagination from '../components/Pagination'
@@ -9,16 +10,6 @@ import ActivityFeed from '../components/feed/ActivityFeed'
 import CompactThoughtCard from '../components/thoughts/CompactThoughtCard'
 import ThoughtModal from '../components/thoughts/ThoughtModal'
 import TagPill from '../components/ui/TagPill'
-
-function getCookie(name) {
-  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
-  return match ? decodeURIComponent(match[2]) : null
-}
-
-function setCookie(name, value) {
-  const expires = new Date(Date.now() + 365 * 86400000).toUTCString()
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`
-}
 
 const SORT_OPTIONS = [
   { value: 'random', label: 'Random' },
@@ -45,7 +36,7 @@ function getInitialPageSize() {
 }
 
 function getInitialSort() {
-  const saved = getCookie('sc_sort')
+  const saved = getPreference('sc_sort')
   return SORT_OPTIONS.some((o) => o.value === saved) ? saved : 'random'
 }
 
@@ -64,7 +55,7 @@ export default function Landing() {
   const [sort, setSort] = useState(getInitialSort)
   const [refreshKey, setRefreshKey] = useState(0)
   const [hasProfileImage, setHasProfileImage] = useState(() => {
-    const saved = getCookie('sc_has_profile_image')
+    const saved = getPreference('sc_has_profile_image')
     return saved === null ? true : saved === 'true'
   })
   const [pageSize, setPageSize] = useState(getInitialPageSize)
@@ -180,9 +171,9 @@ export default function Landing() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleRefresh = () => { setSeed(null); setPage(1); setRefreshKey((k) => k + 1) }
-  const handleSortChange = (value) => { setSort(value); setCookie('sc_sort', value) }
-  const handlePageSizeChange = (newSize) => { localStorage.setItem('sc_page_size', String(newSize)); setPageSize(newSize) }
-  const handleHasProfileImageChange = (checked) => { setHasProfileImage(checked); setCookie('sc_has_profile_image', String(checked)) }
+  const handleSortChange = (value) => { setSort(value); setPreference('sc_sort', value) }
+  const handlePageSizeChange = (newSize) => { setPreference('sc_page_size', String(newSize)); setPageSize(newSize) }
+  const handleHasProfileImageChange = (checked) => { setHasProfileImage(checked); setPreference('sc_has_profile_image', String(checked)) }
   const toggleSkill = (id) => setSelectedSkillIds((prev) => prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id])
 
   const activeFilterCount =
@@ -370,7 +361,7 @@ export default function Landing() {
                       {allSkills.map((skill) => {
                         const active = selectedSkillIds.includes(skill.id)
                         return (
-                          <button key={skill.id} onClick={() => toggleSkill(skill.id)} className={`px-3 py-1 rounded-full text-xs border transition-colors ${active ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white dark:bg-stone-700 border-stone-200 dark:border-stone-600 text-stone-600 dark:text-stone-300 hover:border-amber-300 dark:hover:border-amber-500'}`}>
+                          <button key={skill.id} onClick={() => toggleSkill(skill.id)} aria-pressed={active} className={`px-3 py-1 rounded-full text-xs border transition-colors ${active ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white dark:bg-stone-700 border-stone-200 dark:border-stone-600 text-stone-600 dark:text-stone-300 hover:border-amber-300 dark:hover:border-amber-500'}`}>
                             {skill.name}
                           </button>
                         )
@@ -385,7 +376,7 @@ export default function Landing() {
                       {allRoles.map((role) => {
                         const active = selectedCommunityRoleId === role.id
                         return (
-                          <button key={role.id} onClick={() => setSelectedCommunityRoleId(active ? '' : role.id)} className={`px-3 py-1 rounded-full text-xs border transition-colors ${active ? 'bg-violet-500 border-violet-500 text-white' : 'bg-white dark:bg-stone-700 border-stone-200 dark:border-stone-600 text-stone-600 dark:text-stone-300 hover:border-violet-300 dark:hover:border-violet-500'}`}>
+                          <button key={role.id} onClick={() => setSelectedCommunityRoleId(active ? '' : role.id)} aria-pressed={active} className={`px-3 py-1 rounded-full text-xs border transition-colors ${active ? 'bg-violet-500 border-violet-500 text-white' : 'bg-white dark:bg-stone-700 border-stone-200 dark:border-stone-600 text-stone-600 dark:text-stone-300 hover:border-violet-300 dark:hover:border-violet-500'}`}>
                             {role.name}
                           </button>
                         )

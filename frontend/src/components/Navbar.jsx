@@ -12,22 +12,23 @@ export default function Navbar() {
 
   return (
     <nav className="bg-white/80 dark:bg-stone-900/80 backdrop-blur-sm border-b border-amber-100 dark:border-stone-700 sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link to="/" className="text-xl font-bold text-amber-700 hover:text-amber-800 dark:text-amber-500 dark:hover:text-amber-400 transition-colors">
-            Second Circuit
+      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <Link to="/" className="text-lg sm:text-xl font-bold text-amber-700 hover:text-amber-800 dark:text-amber-500 dark:hover:text-amber-400 transition-colors shrink-0">
+            <span className="hidden sm:inline">Second Circuit</span>
+            <span className="sm:hidden">SC</span>
           </Link>
-          <Link to="/pig" className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-colors">
-            🎲 Games
+          <Link to="/pig" className="flex items-center gap-1 sm:gap-1.5 text-sm font-semibold px-2 sm:px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-colors shrink-0">
+            🎲<span className="hidden sm:inline"> Games</span>
           </Link>
-          <Link to="/academy" className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-colors">
-            🎓 Academy
+          <Link to="/academy" className="flex items-center gap-1 sm:gap-1.5 text-sm font-semibold px-2 sm:px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-colors shrink-0">
+            🎓<span className="hidden sm:inline"> Academy</span>
           </Link>
           <Link
             to="/legal/rules"
-            className="relative flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-colors"
+            className="relative flex items-center gap-1 sm:gap-1.5 text-sm font-semibold px-2 sm:px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-colors shrink-0"
           >
-            📖 Rules
+            📖<span className="hidden sm:inline"> Rules</span>
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />

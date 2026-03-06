@@ -42,49 +42,49 @@ export default function App() {
   return (
     <AuthProvider>
       <UserSettingsProvider>
-      <SocialProvider>
-      <RulesProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/legal/privacy-policy" element={<Layout><PrivacyPolicy /></Layout>} />
-            <Route path="/legal/imprint" element={<Layout><Imprint /></Layout>} />
-            <Route path="/legal/rules" element={<Layout><Rules /></Layout>} />
-            <Route path="/legal/rules/:id" element={<Layout><RuleDetail /></Layout>} />
-            <Route path="/" element={<Layout><Landing /></Layout>} />
-            <Route path="/profiles/:slug" element={<Layout><ProfileDetail /></Layout>} />
-            <Route path="/pig" element={<Layout><PigGameList /></Layout>} />
-            <Route path="/pig/:slug" element={<PigGame />} />
-            <Route path="/thoughts/:slug" element={<ThoughtPage />} />
-            <Route path="/academy" element={<Layout><AcademyLanding /></Layout>} />
-            <Route path="/academy/:category" element={<Layout><AcademyCategory /></Layout>} />
-            <Route path="/academy/:category/:article" element={<Layout><AcademyArticle /></Layout>} />
-            <Route
-              path="/admin"
-              element={
-                <AdminRoute>
-                  <Layout>
-                    <Admin />
-                  </Layout>
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/rules"
-              element={
-                <AdminRoute>
-                  <Layout>
-                    <AdminRules />
-                  </Layout>
-                </AdminRoute>
-              }
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </RulesProvider>
-      </SocialProvider>
+        <SocialProvider>
+          <RulesProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route path="/legal/privacy-policy" element={<Layout><PrivacyPolicy /></Layout>} />
+                <Route path="/legal/imprint" element={<Layout><Imprint /></Layout>} />
+                <Route path="/legal/rules" element={<Layout><Rules /></Layout>} />
+                <Route path="/legal/rules/:id" element={<Layout><RuleDetail /></Layout>} />
+                <Route path="/" element={<Layout><Landing /></Layout>} />
+                <Route path="/profiles/:slug" element={<Layout><ProfileDetail /></Layout>} />
+                <Route path="/pig" element={<Layout><PigGameList /></Layout>} />
+                <Route path="/pig/:slug" element={<PigGame />} />
+                <Route path="/thoughts/:slug" element={<Layout><ThoughtPage /></Layout>} />
+                <Route path="/academy" element={<Layout><AcademyLanding /></Layout>} />
+                <Route path="/academy/:category" element={<Layout><AcademyCategory /></Layout>} />
+                <Route path="/academy/:category/:article" element={<Layout><AcademyArticle /></Layout>} />
+                <Route
+                  path="/admin"
+                  element={
+                    <AdminRoute>
+                      <Layout>
+                        <Admin />
+                      </Layout>
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/rules"
+                  element={
+                    <AdminRoute>
+                      <Layout>
+                        <AdminRules />
+                      </Layout>
+                    </AdminRoute>
+                  }
+                />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </RulesProvider>
+        </SocialProvider>
       </UserSettingsProvider>
     </AuthProvider>
   )

@@ -26,22 +26,22 @@ export default function CommentCompose({ thoughtId, minLength = 30, onCommentPos
   }
 
   return (
-    <div className="border-t border-gray-800 pt-4 mt-4">
+    <div className="border-t border-stone-200 dark:border-stone-700 pt-4 mt-4">
       <textarea
         value={body}
         onChange={e => setBody(e.target.value)}
         placeholder="Share your thoughts... (markdown supported)"
-        className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-sm text-gray-300 resize-none min-h-[80px] focus:border-yellow-600 focus:outline-none"
+        className="w-full bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-lg p-3 text-sm text-stone-700 dark:text-stone-300 resize-none min-h-[80px] focus:ring-2 focus:ring-amber-300 focus:outline-none"
       />
-      {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
+      {error && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{error}</p>}
       <div className="flex justify-between items-center mt-2">
-        <span className={`text-xs ${body.length < minLength ? 'text-gray-600' : 'text-green-600'}`}>
+        <span className={`text-xs ${body.length < minLength ? 'text-stone-400 dark:text-stone-500' : 'text-green-600 dark:text-green-500'}`}>
           {body.length} / {minLength} min chars
         </span>
         <button
           disabled={body.trim().length < minLength || submitting}
           onClick={handleSubmit}
-          className="bg-yellow-600 hover:bg-yellow-500 disabled:opacity-40 disabled:cursor-not-allowed text-black font-semibold px-4 py-1.5 rounded-lg text-sm transition-colors"
+          className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-semibold px-4 py-1.5 rounded-lg text-sm transition-colors"
         >
           {submitting ? 'Posting...' : 'Post Comment'}
         </button>
