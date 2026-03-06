@@ -28,6 +28,7 @@ public class MongoDbContext
     public IMongoCollection<RuleRead> RuleReads { get; }
     public IMongoCollection<ThoughtRead> ThoughtReads { get; }
     public IMongoCollection<ProfileVisit> ProfileVisits { get; }
+    public IMongoCollection<AcademyRead> AcademyReads { get; }
 
     public MongoDbContext(IOptions<MongoDbSettings> settings)
     {
@@ -55,6 +56,7 @@ public class MongoDbContext
         RuleReads = database.GetCollection<RuleRead>("rule_reads");
         ThoughtReads = database.GetCollection<ThoughtRead>("thought_reads");
         ProfileVisits = database.GetCollection<ProfileVisit>("profile_visits");
+        AcademyReads = database.GetCollection<AcademyRead>("academy_reads");
 
         EnsureIndexes();
     }
@@ -192,6 +194,15 @@ public class MongoDbContext
                 new CreateIndexOptions { Unique = true }),
             new CreateIndexModel<ProfileVisit>(
                 Builders<ProfileVisit>.IndexKeys.Ascending(v => v.ProfileUserId))
+        ]);
+
+        AcademyReads.Indexes.CreateMany([
+            new CreateIndexModel<AcademyRead>(
+                Builders<AcademyRead>.IndexKeys.Ascending(r => r.ArticlePath)),
+            new CreateIndexModel<AcademyRead>(
+                Builders<AcademyRead>.IndexKeys
+                    .Ascending(r => r.ArticlePath)
+                    .Descending(r => r.ReadAt))
         ]);
     }
 }

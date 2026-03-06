@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
+using MongoDB.Driver;
 using SecondCircuitProfiles.Api.Configuration;
+using SecondCircuitProfiles.Api.DTOs;
 using SecondCircuitProfiles.Api.Models;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -14,9 +16,12 @@ public interface IAcademyService
     AcademyIndex GetIndex();
     ArticleResponse? GetArticle(string path);
     string? GetImagePath(string relativePath);
+    Task TrackArticleRead(string articlePath, string visitorUserId);
+    Task<AcademyArticleInsightsResponse> GetArticleInsights(string articlePath);
+    Task<List<AcademyReadExportEntry>> GetArticleReadExport(string articlePath, DateTime? from, DateTime? to);
 }
 
-public class AcademyService(IOptions<AcademySettings> options, ILogger<AcademyService> logger)
+public class AcademyService(IOptions<AcademySettings> options, ILogger<AcademyService> logger, MongoDbContext db)
     : IAcademyService
 {
     private readonly AcademySettings _settings = options.Value;
@@ -190,6 +195,123 @@ public class AcademyService(IOptions<AcademySettings> options, ILogger<AcademySe
 
     private static string Capitalise(string s) =>
         string.IsNullOrEmpty(s) ? s : char.ToUpper(s[0]) + s[1..];
+
+    // ── Insights ────────────────────────────────────────────────────────────
+
+    public async Task TrackArticleRead(string articlePath, string visitorUserId)
+    {
+        await db.AcademyReads.InsertOneAsync(new AcademyRead
+        {
+            ArticlePath = articlePath,
+            VisitorUserId = visitorUserId,
+            ReadAt = DateTime.UtcNow
+        });
+    }
+
+    public async Task<AcademyArticleInsightsResponse> GetArticleInsights(string articlePath)
+    {
+        var reads = await db.AcademyReads
+            .Find(r => r.ArticlePath == articlePath)
+            .SortByDescending(r => r.ReadAt)
+            .ToListAsync();
+
+        var totalReads = reads.Count;
+        var visitorIds = reads.Select(r => r.VisitorUserId).Distinct().ToList();
+        var visitors = await db.Users.Find(u => visitorIds.Contains(u.Id)).ToListAsync();
+        var visitorMap = visitors.ToDictionary(u => u.Id);
+
+        var readers = reads
+            .GroupBy(r => r.VisitorUserId)
+            .Select(g =>
+            {
+                var latest = g.First();
+                visitorMap.TryGetValue(latest.VisitorUserId, out var user);
+                return new AcademyReaderEntry
+                {
+                    Slug = user?.Slug ?? "",
+                    Username = user?.AlternativeName ?? user?.DiscordUsername ?? "Unknown",
+                    AvatarUrl = user?.ProfileImageFilename,
+                    ReadAt = latest.ReadAt
+                };
+            })
+            .ToList();
+
+        var reactions = await db.Reactions
+            .Find(r => r.TargetId == articlePath && r.TargetType == "academy_article")
+            .ToListAsync();
+
+        var reactorUserIds = reactions.Select(r => r.UserId).Distinct().ToList();
+        var reactorUsers = await db.Users.Find(u => reactorUserIds.Contains(u.Id)).ToListAsync();
+        var reactorMap = reactorUsers.ToDictionary(u => u.Id);
+
+        var emojiKeys = reactions.Select(r => r.EmojiKey).Distinct().ToList();
+        var emojis = await db.AvailableEmojis.Find(e => emojiKeys.Contains(e.Key)).ToListAsync();
+        var emojiDefs = emojis.ToDictionary(e => e.Key);
+
+        var reactionGroups = reactions
+            .GroupBy(r => r.EmojiKey)
+            .Select(g =>
+            {
+                emojiDefs.TryGetValue(g.Key, out var emoji);
+                return new ReactionGroupWithReactors
+                {
+                    EmojiKey = g.Key,
+                    Emoji = emoji?.Emoji ?? g.Key,
+                    Label = emoji?.Label ?? g.Key,
+                    Reactors = g.Select(r =>
+                    {
+                        reactorMap.TryGetValue(r.UserId, out var user);
+                        return new ReactionReactorEntry
+                        {
+                            Slug = user?.Slug ?? "",
+                            Username = user?.AlternativeName ?? user?.DiscordUsername ?? "Unknown",
+                            AvatarUrl = user?.ProfileImageFilename
+                        };
+                    }).ToList()
+                };
+            })
+            .OrderByDescending(g => g.Reactors.Count)
+            .ToList();
+
+        return new AcademyArticleInsightsResponse
+        {
+            TotalReads = totalReads,
+            UniqueReaders = visitorIds.Count,
+            Readers = readers,
+            ReactionGroups = reactionGroups
+        };
+    }
+
+    public async Task<List<AcademyReadExportEntry>> GetArticleReadExport(
+        string articlePath, DateTime? from, DateTime? to)
+    {
+        var filter = Builders<AcademyRead>.Filter.Eq(r => r.ArticlePath, articlePath);
+
+        if (from.HasValue)
+            filter &= Builders<AcademyRead>.Filter.Gte(r => r.ReadAt, from.Value);
+        if (to.HasValue)
+            filter &= Builders<AcademyRead>.Filter.Lte(r => r.ReadAt, to.Value);
+
+        var reads = await db.AcademyReads
+            .Find(filter)
+            .SortByDescending(r => r.ReadAt)
+            .ToListAsync();
+
+        var visitorIds = reads.Select(r => r.VisitorUserId).Distinct().ToList();
+        var visitors = await db.Users.Find(u => visitorIds.Contains(u.Id)).ToListAsync();
+        var visitorMap = visitors.ToDictionary(u => u.Id);
+
+        return reads.Select(r =>
+        {
+            visitorMap.TryGetValue(r.VisitorUserId, out var user);
+            return new AcademyReadExportEntry
+            {
+                Username = user?.AlternativeName ?? user?.DiscordUsername ?? "Unknown",
+                Slug = user?.Slug ?? "",
+                ReadAt = r.ReadAt
+            };
+        }).ToList();
+    }
 
     private static async Task<(bool Success, string Error)> RunGit(params string[] arguments)
     {

@@ -23,6 +23,8 @@ function formatRelativeTime(ts) {
 }
 
 export default function FeedItem({ item, onOpenThought }) {
+  if (item.type === 'reaction_milestone') return null
+
   return (
     <div className={`flex items-start gap-3 p-3 rounded-lg
       ${item.isFromFollowed

@@ -9,4 +9,5 @@ public interface IReactionService
     Task<List<ReactionGroupResponse>> GetReactions(string targetId, string targetType, string? requestingUserId);
     Task<Dictionary<string, List<ReactionGroupResponse>>> GetReactionsBulk(List<string> targetIds, string targetType, string? requestingUserId);
     Task<int> GetTotalReactionCount(string targetId, string targetType);
+    Task<List<ReactionGroupWithReactors>> GetReactionsWithReactors(string targetId, string targetType);
 }

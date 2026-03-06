@@ -13,7 +13,8 @@ public class CompanionsController(
     IUserService userService,
     ICompanionService companionService,
     IImageService imageService,
-    IAuditService auditService) : ControllerBase
+    IAuditService auditService,
+    IReactionService reactionService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType<List<CompanionResponse>>(StatusCodes.Status200OK)]
@@ -279,6 +280,23 @@ public class CompanionsController(
         }
 
         return NoContent();
+    }
+
+    [Authorize]
+    [HttpGet("{id}/reaction-insights")]
+    [ProducesResponseType<List<ReactionGroupWithReactors>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCompanionReactionInsights(string slug, string id)
+    {
+        var currentSlug = User.FindFirstValue("slug");
+        if (currentSlug != slug) return Forbid();
+
+        var user = await userService.GetBySlug(slug);
+        if (user is null) return NotFound();
+
+        var groups = await reactionService.GetReactionsWithReactors(id, "companion");
+        return Ok(groups);
     }
 
     private static CompanionResponse MapToResponse(Models.Companion companion) => new()

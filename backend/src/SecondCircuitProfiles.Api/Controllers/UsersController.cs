@@ -18,7 +18,8 @@ public class UsersController(
     ISkillService skillService,
     ILlmProviderService llmProviderService,
     ICommunityRoleService communityRoleService,
-    IPartnerCommunityService partnerCommunityService) : ControllerBase
+    IPartnerCommunityService partnerCommunityService,
+    IReactionService reactionService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType<PaginatedResponse<UserListItemResponse>>(StatusCodes.Status200OK)]
@@ -92,6 +93,29 @@ public class UsersController(
         }
 
         return Ok(response);
+    }
+
+    [Authorize]
+    [HttpGet("{slug}/profile-insights")]
+    [ProducesResponseType<ProfileInsightsResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetProfileInsights(string slug)
+    {
+        var currentSlug = User.FindFirstValue("slug");
+        if (currentSlug != slug) return Forbid();
+
+        var user = await userService.GetBySlug(slug);
+        if (user is null) return NotFound();
+
+        var visitors = await userService.GetProfileVisitors(user.Id);
+        var reactionGroups = await reactionService.GetReactionsWithReactors(user.Id, "profile");
+
+        return Ok(new ProfileInsightsResponse
+        {
+            Visitors = visitors,
+            ReactionGroups = reactionGroups
+        });
     }
 
     [Authorize]

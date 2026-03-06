@@ -24,6 +24,7 @@ public interface IUserService
     Task UpdateLastSeen(string userId);
     Task TrackProfileVisit(string profileUserId, string visitorUserId);
     Task<(int visitCount, int uniqueVisitorCount)> GetProfileVisitStats(string profileUserId);
+    Task<List<ProfileVisitorEntry>> GetProfileVisitors(string profileUserId);
     Task<PaginatedResponse<UserListItemResponse>> GetUsersPage(
         int seed, int page, int pageSize, string? search,
         bool isAuthenticated, bool isAdmin,

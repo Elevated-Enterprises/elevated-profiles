@@ -237,6 +237,34 @@ public class UserService(
         return (user?.VisitCount ?? 0, unique);
     }
 
+    public async Task<List<ProfileVisitorEntry>> GetProfileVisitors(string profileUserId)
+    {
+        var visits = await db.ProfileVisits
+            .Find(v => v.ProfileUserId == profileUserId)
+            .SortByDescending(v => v.VisitedAt)
+            .ToListAsync();
+
+        var visitorIds = visits.Select(v => v.VisitorUserId).Distinct().ToList();
+        var visitors = await db.Users.Find(u => visitorIds.Contains(u.Id)).ToListAsync();
+        var visitorMap = visitors.ToDictionary(u => u.Id);
+
+        return visits
+            .GroupBy(v => v.VisitorUserId)
+            .Select(g =>
+            {
+                var latest = g.First(); // already sorted descending
+                visitorMap.TryGetValue(latest.VisitorUserId, out var user);
+                return new ProfileVisitorEntry
+                {
+                    Slug = user?.Slug ?? "",
+                    Username = user?.AlternativeName ?? user?.DiscordUsername ?? "Unknown",
+                    AvatarUrl = user?.ProfileImageFilename,
+                    VisitedAt = latest.VisitedAt
+                };
+            })
+            .ToList();
+    }
+
     public async Task<User?> SetPrimaryCompanion(string slug, string? companionId)
     {
         var update = Builders<User>.Update

@@ -29,6 +29,16 @@ public class ReactionService(MongoDbContext db, IEmojiService emojiService, IFee
                 contentOwnerUserId = thought?.AuthorUserId;
             }
         }
+        else if (targetType == "profile")
+        {
+            // targetId is the profile owner's user Id
+            contentOwnerUserId = targetId;
+        }
+        else if (targetType == "companion")
+        {
+            var companion = await db.Companions.Find(c => c.Id == targetId).FirstOrDefaultAsync();
+            contentOwnerUserId = companion?.UserId;
+        }
 
         if (contentOwnerUserId != null && await socialService.IsBlockedBy(contentOwnerUserId, userId))
             return false;
@@ -104,6 +114,48 @@ public class ReactionService(MongoDbContext db, IEmojiService emojiService, IFee
     {
         return (int)await db.Reactions.CountDocumentsAsync(
             r => r.TargetId == targetId && r.TargetType == targetType);
+    }
+
+    public async Task<List<ReactionGroupWithReactors>> GetReactionsWithReactors(string targetId, string targetType)
+    {
+        var reactions = await db.Reactions
+            .Find(r => r.TargetId == targetId && r.TargetType == targetType)
+            .ToListAsync();
+
+        if (reactions.Count == 0) return [];
+
+        var reactorUserIds = reactions.Select(r => r.UserId).Distinct().ToList();
+        var reactorUsers = await db.Users.Find(u => reactorUserIds.Contains(u.Id)).ToListAsync();
+        var reactorMap = reactorUsers.ToDictionary(u => u.Id);
+
+        var emojiKeys = reactions.Select(r => r.EmojiKey).Distinct().ToList();
+        var emojis = await db.AvailableEmojis.Find(e => emojiKeys.Contains(e.Key)).ToListAsync();
+        var emojiDefs = emojis.ToDictionary(e => e.Key);
+
+        return reactions
+            .GroupBy(r => r.EmojiKey)
+            .Select(g =>
+            {
+                emojiDefs.TryGetValue(g.Key, out var emoji);
+                return new ReactionGroupWithReactors
+                {
+                    EmojiKey = g.Key,
+                    Emoji = emoji?.Emoji ?? g.Key,
+                    Label = emoji?.Label ?? g.Key,
+                    Reactors = g.Select(r =>
+                    {
+                        reactorMap.TryGetValue(r.UserId, out var user);
+                        return new ReactionReactorEntry
+                        {
+                            Slug = user?.Slug ?? "",
+                            Username = user?.AlternativeName ?? user?.DiscordUsername ?? "Unknown",
+                            AvatarUrl = user?.ProfileImageFilename
+                        };
+                    }).ToList()
+                };
+            })
+            .OrderByDescending(g => g.Reactors.Count)
+            .ToList();
     }
 
     private async Task<List<ReactionGroupResponse>> BuildGroups(List<Reaction> reactions, string? requestingUserId)

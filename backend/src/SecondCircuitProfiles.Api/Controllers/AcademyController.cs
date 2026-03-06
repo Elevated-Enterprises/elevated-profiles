@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
+using SecondCircuitProfiles.Api.DTOs;
 using SecondCircuitProfiles.Api.Models;
 using SecondCircuitProfiles.Api.Services;
 
@@ -10,6 +11,9 @@ namespace SecondCircuitProfiles.Api.Controllers;
 [Route("api/academy")]
 public class AcademyController(IAcademyService academyService) : ControllerBase
 {
+    private string? GetUserId() => User.FindFirst("sub")?.Value
+        ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
     [HttpPost("sync")]
     [Authorize(Policy = "RequireAdmin")]
     [ProducesResponseType<SyncResult>(StatusCodes.Status200OK)]
@@ -37,6 +41,13 @@ public class AcademyController(IAcademyService academyService) : ControllerBase
 
         var article = academyService.GetArticle(path);
         if (article is null) return NotFound();
+
+        // Track read for authenticated non-admin users
+        var userId = GetUserId();
+        var isAdmin = User.FindFirst("is_admin")?.Value == "true";
+        if (userId != null && !isAdmin)
+            _ = academyService.TrackArticleRead(path, userId);
+
         return Ok(article);
     }
 
@@ -53,5 +64,34 @@ public class AcademyController(IAcademyService academyService) : ControllerBase
             contentType = "application/octet-stream";
 
         return PhysicalFile(fullPath, contentType);
+    }
+
+    [HttpGet("insights")]
+    [Authorize(Policy = "RequireAdmin")]
+    [ProducesResponseType<AcademyArticleInsightsResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetInsights([FromQuery] string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || path.Contains("..") || path.StartsWith('/'))
+            return BadRequest();
+
+        var insights = await academyService.GetArticleInsights(path);
+        return Ok(insights);
+    }
+
+    [HttpGet("insights/export")]
+    [Authorize(Policy = "RequireAdmin")]
+    [ProducesResponseType<List<AcademyReadExportEntry>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ExportInsights(
+        [FromQuery] string path,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to)
+    {
+        if (string.IsNullOrWhiteSpace(path) || path.Contains("..") || path.StartsWith('/'))
+            return BadRequest();
+
+        var entries = await academyService.GetArticleReadExport(path, from, to);
+        return Ok(entries);
     }
 }

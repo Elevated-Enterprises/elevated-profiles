@@ -186,4 +186,18 @@ export const getAcademyArticle = (path) =>
 
 export const syncAcademy = () => api.post('/api/academy/sync')
 
+export const getAcademyInsights = (path) =>
+  api.get('/api/academy/insights', { params: { path } })
+
+export const getAcademyInsightsExport = (path, from, to) =>
+  api.get('/api/academy/insights/export', { params: { path, from, to } })
+
+// ── Profile Insights ──────────────────────────────────────────────────────────
+
+export const getProfileInsights = (slug) =>
+  api.get(`/api/users/${slug}/profile-insights`)
+
+export const getCompanionReactionInsights = (slug, companionId) =>
+  api.get(`/api/users/${slug}/companions/${companionId}/reaction-insights`)
+
 export default api

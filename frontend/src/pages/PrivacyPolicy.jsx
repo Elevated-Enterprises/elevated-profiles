@@ -96,7 +96,35 @@ export default function PrivacyPolicy() {
           You can disable the font at any time via the "Aa" toggle in the navigation bar.
         </p>
 
-        <h3>2.5 Server access logs</h3>
+        <h3>2.5 Usage insights (profile visits, article reads, reactions)</h3>
+        <p>
+          To help members understand how their content is received, we track the following activity internally:
+        </p>
+        <ul>
+          <li>Profile page visits (which authenticated members viewed your profile and when)</li>
+          <li>Thought reads (which authenticated members opened a thought and when)</li>
+          <li>Academy article reads (which authenticated members read an article and when)</li>
+          <li>Reactions to profiles, companions, thoughts, and Academy articles</li>
+        </ul>
+        <p>
+          This data is used exclusively to provide the "Insights" feature to content owners and administrators,
+          and to help us understand what content is valuable to our community. We use these insights to see
+          what works and what does not resonate, so we can improve the platform and our content.
+        </p>
+        <p>
+          <strong>We will never share, sell, or publish this data to third parties.</strong> Insight data is
+          only visible to the respective content owner (for their own profiles, companions, and thoughts) and
+          to administrators (for Academy articles and platform-wide statistics).
+        </p>
+        <p>
+          Administrators are excluded from all insight counts and visitor lists to ensure accuracy.
+        </p>
+        <p>
+          <strong>Legal basis:</strong> Art. 6(1)(f) GDPR — legitimate interest in providing personalised
+          content performance feedback within a closed, private community platform.
+        </p>
+
+        <h3>2.6 Server access logs</h3>
         <p>
           Our web server may log standard HTTP access data (IP address, timestamp, requested URL, browser user agent).
           These logs are used for security and operational purposes and are not linked to individual user accounts beyond

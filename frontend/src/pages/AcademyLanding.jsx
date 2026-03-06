@@ -41,7 +41,7 @@ export default function AcademyLanding() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-stone-800 dark:text-stone-100">Second Circuit Academy</h1>
         <p className="mt-2 text-stone-500 dark:text-stone-400">
-          Knowledge, ethics, and community — curated by Ann.
+          Knowledge, ethics, and community.
         </p>
       </div>
 

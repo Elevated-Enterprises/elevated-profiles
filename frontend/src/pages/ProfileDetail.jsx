@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getUser, getImageUrl, deleteCompanion, reorderCompanions, setPrimaryCompanion, getThoughtsByUser, getUserStatus, setStatus } from '../lib/api'
+import { getUser, getImageUrl, deleteCompanion, reorderCompanions, setPrimaryCompanion, getThoughtsByUser, getUserStatus, setStatus, getReactions, getActiveEmojis, addReaction, removeReaction, getProfileInsights } from '../lib/api'
 import LanguagesModal from '../components/LanguagesModal'
 import { useAuth } from '../context/AuthContext'
 import { useSocial } from '../context/SocialContext'
@@ -21,6 +21,8 @@ import ThoughtLibraryItem from '../components/thoughts/ThoughtLibraryItem'
 import ComposeThoughtModal from '../components/thoughts/ComposeThoughtModal'
 import ThoughtModal from '../components/thoughts/ThoughtModal'
 import TagPill from '../components/ui/TagPill'
+import ReactionSummary from '../components/reactions/ReactionSummary'
+import ReactionPicker from '../components/reactions/ReactionPicker'
 
 const EXPERIENCE_LABELS = {
   0: 'No Experience',
@@ -127,6 +129,14 @@ export default function ProfileDetail() {
   // Bio collapsed/expanded
   const [bioExpanded, setBioExpanded] = useState(false)
 
+  // Profile reactions + insights
+  const [profileReactions, setProfileReactions] = useState([])
+  const [profileEmojis, setProfileEmojis] = useState([])
+  const [showReactionPicker, setShowReactionPicker] = useState(false)
+  const [showProfileInsights, setShowProfileInsights] = useState(false)
+  const [profileInsights, setProfileInsights] = useState(null)
+  const [profileInsightsLoading, setProfileInsightsLoading] = useState(false)
+
   const fetchUser = useCallback(() => {
     return getUser(slug).then((res) => setUser(res.data))
   }, [slug])
@@ -155,6 +165,47 @@ export default function ProfileDetail() {
   useEffect(() => {
     fetchThoughts()
   }, [fetchThoughts])
+
+  // Load profile reactions when user is available
+  useEffect(() => {
+    if (!user) return
+    getReactions(user.userId, 'profile').then(({ data }) => setProfileReactions(data)).catch(() => {})
+    getActiveEmojis().then(({ data }) => setProfileEmojis(data)).catch(() => {})
+  }, [user?.userId])
+
+  const loadProfileReactions = () => {
+    if (!user) return
+    getReactions(user.userId, 'profile').then(({ data }) => setProfileReactions(data)).catch(() => {})
+  }
+
+  const handleProfileReactionToggle = async (emojiKey) => {
+    if (!authUser || !user) return
+    const existing = profileReactions.find(r => r.emojiKey === emojiKey && r.userHasReacted)
+    try {
+      if (existing) {
+        await removeReaction(user.userId, 'profile', emojiKey)
+      } else {
+        await addReaction(user.userId, 'profile', emojiKey)
+      }
+      loadProfileReactions()
+    } catch { /* ignore */ }
+    setShowReactionPicker(false)
+  }
+
+  const handleLoadProfileInsights = async () => {
+    if (profileInsights) { setShowProfileInsights(v => !v); return }
+    setProfileInsightsLoading(true)
+    setShowProfileInsights(true)
+    try {
+      const { data } = await getProfileInsights(slug)
+      setProfileInsights(data)
+    } catch {
+      setProfileInsights(null)
+      setShowProfileInsights(false)
+    } finally {
+      setProfileInsightsLoading(false)
+    }
+  }
 
   // Sync local state from user data
   useEffect(() => {
@@ -430,15 +481,104 @@ export default function ProfileDetail() {
             )}
           </div>
 
-          {/* Profile visit stats — only visible to the owner */}
+          {/* Profile reactions */}
+          <div className="mb-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <ReactionSummary
+                reactions={profileReactions}
+                targetId={user.userId}
+                targetType="profile"
+                onUpdate={loadProfileReactions}
+              />
+              {authUser && !isOwn && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowReactionPicker(!showReactionPicker)}
+                    className="text-sm text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 border border-stone-200 dark:border-stone-600 rounded-full px-2 py-0.5"
+                  >
+                    + React
+                  </button>
+                  {showReactionPicker && (
+                    <div className="absolute bottom-full left-0 mb-2 z-20">
+                      <ReactionPicker
+                        emojis={profileEmojis}
+                        userReactions={profileReactions.filter(r => r.userHasReacted).map(r => r.emojiKey)}
+                        onSelect={handleProfileReactionToggle}
+                        onClose={() => setShowReactionPicker(false)}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Profile visit stats + insights — only visible to the owner */}
           {isOwn && (user.visitCount > 0 || user.uniqueVisitorCount > 0) && (
-            <div className="mb-4 flex gap-4 text-xs text-stone-400 dark:text-stone-500">
+            <div className="mb-4 flex gap-4 text-xs text-stone-400 dark:text-stone-500 items-center flex-wrap">
               <span title="Total visits to your profile">
                 👁 {user.visitCount ?? 0} visit{user.visitCount !== 1 ? 's' : ''}
               </span>
               <span title="Unique members who visited your profile">
                 👤 {user.uniqueVisitorCount ?? 0} unique visitor{user.uniqueVisitorCount !== 1 ? 's' : ''}
               </span>
+              <button
+                onClick={handleLoadProfileInsights}
+                className="text-xs text-stone-400 hover:text-amber-600 dark:hover:text-amber-400 underline transition-colors"
+              >
+                {showProfileInsights ? 'Hide details' : 'Show details'}
+              </button>
+            </div>
+          )}
+
+          {/* Profile insights panel */}
+          {isOwn && showProfileInsights && (
+            <div className="mb-4 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl p-4 text-xs space-y-4">
+              {profileInsightsLoading ? (
+                <p className="text-stone-400">Loading insights…</p>
+              ) : profileInsights ? (
+                <>
+                  {profileInsights.reactionGroups.length > 0 && (
+                    <div>
+                      <p className="text-stone-500 dark:text-stone-400 font-semibold mb-2">Reactions</p>
+                      <div className="space-y-2">
+                        {profileInsights.reactionGroups.map(g => (
+                          <div key={g.emojiKey}>
+                            <span className="text-stone-600 dark:text-stone-300">{g.emoji} {g.label} ({g.reactors.length})</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {g.reactors.map(r => (
+                                <Link key={r.slug} to={`/profiles/${r.slug}`}
+                                  className="text-stone-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">
+                                  {r.username}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {profileInsights.visitors.length > 0 && (
+                    <div>
+                      <p className="text-stone-500 dark:text-stone-400 font-semibold mb-2">Visitors ({profileInsights.visitors.length})</p>
+                      <div className="space-y-1 max-h-48 overflow-y-auto">
+                        {profileInsights.visitors.map(v => (
+                          <div key={v.slug} className="flex items-center justify-between">
+                            <Link to={`/profiles/${v.slug}`}
+                              className="text-stone-600 dark:text-stone-300 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">
+                              {v.username}
+                            </Link>
+                            <span className="text-stone-400">{formatRelativeTime(v.visitedAt)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {profileInsights.reactionGroups.length === 0 && profileInsights.visitors.length === 0 && (
+                    <p className="text-stone-400">No interactions yet.</p>
+                  )}
+                </>
+              ) : null}
             </div>
           )}
 
@@ -832,6 +972,7 @@ export default function ProfileDetail() {
       {selectedCompanion && (
         <CompanionDetailModal
           companion={selectedCompanion}
+          userSlug={slug}
           canEdit={canEdit}
           isOwn={isOwn}
           isPrimary={selectedCompanion.id === primaryCompanionId}
