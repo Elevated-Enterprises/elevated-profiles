@@ -17,19 +17,19 @@ export default function Navbar() {
           <Link to="/" className="text-xl font-bold text-amber-700 hover:text-amber-800 dark:text-amber-500 dark:hover:text-amber-400 transition-colors">
             Second Circuit
           </Link>
-          <Link to="/pig" className="text-sm font-medium text-stone-500 dark:text-stone-400 hover:text-amber-700 dark:hover:text-amber-400 transition-colors flex items-center gap-1">
-            🎲 Pig
+          <Link to="/pig" className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-colors">
+            🎲 Games
           </Link>
-          <Link to="/academy" className="text-sm font-medium text-stone-500 dark:text-stone-400 hover:text-amber-700 dark:hover:text-amber-400 transition-colors">
-            Academy
+          <Link to="/academy" className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-colors">
+            🎓 Academy
           </Link>
           <Link
             to="/legal/rules"
-            className="relative text-sm font-medium text-stone-500 dark:text-stone-400 hover:text-amber-700 dark:hover:text-amber-400 transition-colors"
+            className="relative flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-colors"
           >
-            Rules
+            📖 Rules
             {unreadCount > 0 && (
-              <span className="absolute -top-1.5 -right-2.5 flex h-2 w-2">
+              <span className="absolute -top-1 -right-1 flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
               </span>
