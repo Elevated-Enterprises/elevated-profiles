@@ -25,6 +25,7 @@ public interface IUserService
     Task TrackProfileVisit(string profileUserId, string visitorUserId);
     Task<(int visitCount, int uniqueVisitorCount)> GetProfileVisitStats(string profileUserId);
     Task<List<ProfileVisitorEntry>> GetProfileVisitors(string profileUserId);
+    Task<bool> DeleteUser(string slug);
     Task<PaginatedResponse<UserListItemResponse>> GetUsersPage(
         int seed, int page, int pageSize, string? search,
         bool isAuthenticated, bool isAdmin,

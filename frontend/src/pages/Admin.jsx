@@ -5,7 +5,7 @@ import {
   getLlmProviders, createLlmProvider, deleteLlmProvider,
   getCommunityRoles, createCommunityRole, deleteCommunityRole,
   getPartnerCommunities, createPartnerCommunity, deletePartnerCommunity,
-  getUsers, setUserBlocked,
+  getUsers, setUserBlocked, deleteAdminUser,
   getAdminEmojis, createAdminEmoji, toggleAdminEmoji,
   getAdminTags, createAdminTag, deleteAdminTag,
   getThoughtSettings, updateThoughtSettings,
@@ -473,6 +473,7 @@ function UserManagement() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
   const [blockingSlug, setBlockingSlug] = useState(null)
+  const [deletingSlug, setDeletingSlug] = useState(null)
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 400)
@@ -499,6 +500,20 @@ function UserManagement() {
       alert('Failed to update block status.')
     } finally {
       setBlockingSlug(null)
+    }
+  }
+
+  const handleDelete = async (u) => {
+    const name = u.displayName || u.slug
+    if (!window.confirm(`Permanently delete "${name}"? This removes ALL data for this user and cannot be undone.`)) return
+    setDeletingSlug(u.slug)
+    try {
+      await deleteAdminUser(u.slug)
+      setUsers((prev) => prev.filter((x) => x.slug !== u.slug))
+    } catch {
+      alert('Failed to delete user.')
+    } finally {
+      setDeletingSlug(null)
     }
   }
 
@@ -533,17 +548,27 @@ function UserManagement() {
                   <span className="ml-2 text-xs text-amber-500 dark:text-amber-400">admin</span>
                 )}
               </div>
-              <button
-                onClick={() => handleBlock(u.slug, u.isBlocked)}
-                disabled={blockingSlug === u.slug}
-                className={`text-xs px-2 py-0.5 rounded border transition-colors whitespace-nowrap ${
-                  u.isBlocked
-                    ? 'border-green-300 dark:border-green-700 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
-                    : 'border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
-                }`}
-              >
-                {blockingSlug === u.slug ? '…' : u.isBlocked ? 'Unblock' : 'Block'}
-              </button>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button
+                  onClick={() => handleBlock(u.slug, u.isBlocked)}
+                  disabled={blockingSlug === u.slug}
+                  className={`text-xs px-2 py-0.5 rounded border transition-colors whitespace-nowrap ${
+                    u.isBlocked
+                      ? 'border-green-300 dark:border-green-700 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
+                      : 'border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                  }`}
+                >
+                  {blockingSlug === u.slug ? '…' : u.isBlocked ? 'Unblock' : 'Block'}
+                </button>
+                <button
+                  onClick={() => handleDelete(u)}
+                  disabled={deletingSlug === u.slug}
+                  className="text-xs px-2 py-0.5 rounded border border-stone-200 dark:border-stone-700 text-stone-400 hover:border-red-300 hover:text-red-500 dark:hover:border-red-700 dark:hover:text-red-400 transition-colors whitespace-nowrap"
+                  title="Delete user and all their data"
+                >
+                  {deletingSlug === u.slug ? '…' : 'Delete'}
+                </button>
+              </div>
             </li>
           ))}
         </ul>

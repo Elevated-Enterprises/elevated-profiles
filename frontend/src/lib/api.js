@@ -104,6 +104,7 @@ export const deletePartnerCommunity = (id) => api.delete(`/api/partner-communiti
 export const setUserAmbassadorCommunity = (slug, communityId) => api.put(`/api/users/${slug}/ambassador-community`, { communityId: communityId || null })
 
 export const setUserBlocked = (slug, blocked) => api.put(`/api/admin/users/${slug}/blocked`, { blocked })
+export const deleteAdminUser = (slug) => api.delete(`/api/admin/users/${slug}`)
 
 // ── Thoughts ─────────────────────────────────────────────────────────────────
 export const getThoughts = (params) => api.get('/api/thoughts', { params })

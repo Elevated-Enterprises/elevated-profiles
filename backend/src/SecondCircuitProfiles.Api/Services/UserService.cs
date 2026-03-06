@@ -10,7 +10,8 @@ namespace SecondCircuitProfiles.Api.Services;
 public class UserService(
     MongoDbContext db,
     ILogger<UserService> logger,
-    IStatusService statusService) : IUserService
+    IStatusService statusService,
+    IImageService imageService) : IUserService
 {
     public async Task<User?> GetBySlug(string slug)
     {
@@ -301,6 +302,82 @@ public class UserService(
 
         await db.Users.UpdateOneAsync(u => u.Slug == slug, update);
         return settings;
+    }
+
+    public async Task<bool> DeleteUser(string slug)
+    {
+        var user = await GetBySlug(slug);
+        if (user is null) return false;
+
+        var userId = user.Id;
+
+        // Companions + their images
+        var companions = await db.Companions.Find(c => c.UserId == userId).ToListAsync();
+        foreach (var companion in companions)
+        {
+            if (companion.ProfileImageFilename is not null)
+                imageService.DeleteImage(companion.ProfileImageFilename);
+        }
+        await db.Companions.DeleteManyAsync(c => c.UserId == userId);
+
+        // Thoughts + their images, comments, and reactions
+        var thoughts = await db.Thoughts.Find(t => t.AuthorUserId == userId).ToListAsync();
+        if (thoughts.Count > 0)
+        {
+            var thoughtIds = thoughts.Select(t => t.Id).ToList();
+
+            foreach (var thought in thoughts)
+            {
+                if (thought.ImageFilename is not null)
+                    imageService.DeleteImage(thought.ImageFilename);
+            }
+
+            await db.Comments.DeleteManyAsync(
+                Builders<Comment>.Filter.In(c => c.ThoughtId, thoughtIds));
+            await db.Reactions.DeleteManyAsync(
+                Builders<Reaction>.Filter.In(r => r.TargetId, thoughtIds));
+            await db.ThoughtReads.DeleteManyAsync(
+                Builders<ThoughtRead>.Filter.In(r => r.ThoughtId, thoughtIds));
+        }
+        await db.Thoughts.DeleteManyAsync(t => t.AuthorUserId == userId);
+
+        // User's own comments and reactions on other content
+        await db.Comments.DeleteManyAsync(c => c.AuthorUserId == userId);
+        await db.Reactions.DeleteManyAsync(r => r.UserId == userId);
+
+        // Social graph
+        await db.SocialEdges.DeleteManyAsync(
+            Builders<SocialEdge>.Filter.Or(
+                Builders<SocialEdge>.Filter.Eq(e => e.FromUserId, userId),
+                Builders<SocialEdge>.Filter.Eq(e => e.ToUserId, userId)));
+
+        // Activity / tracking data
+        await db.StatusUpdates.DeleteManyAsync(s => s.UserId == userId);
+        await db.FeedEvents.DeleteManyAsync(f => f.ActorUserId == userId);
+        await db.RuleReads.DeleteManyAsync(r => r.UserId == userId);
+        await db.ThoughtReads.DeleteManyAsync(r => r.UserId == userId);
+        await db.AcademyReads.DeleteManyAsync(r => r.VisitorUserId == userId);
+
+        // Profile visits (as host and as visitor)
+        await db.ProfileVisits.DeleteManyAsync(
+            Builders<ProfileVisit>.Filter.Or(
+                Builders<ProfileVisit>.Filter.Eq(v => v.ProfileUserId, userId),
+                Builders<ProfileVisit>.Filter.Eq(v => v.VisitorUserId, userId)));
+
+        // ThoughtSettings user override
+        var tsUpdate = Builders<ThoughtSettings>.Update.Unset($"userOverrides.{userId}");
+        await db.ThoughtSettings.UpdateOneAsync(_ => true, tsUpdate);
+
+        // User images
+        if (user.ProfileImageFilename is not null)
+            imageService.DeleteImage(user.ProfileImageFilename);
+        if (user.BannerImageFilename is not null)
+            imageService.DeleteImage(user.BannerImageFilename);
+
+        await db.Users.DeleteOneAsync(u => u.Id == userId);
+
+        logger.LogInformation("Deleted user {Slug} ({UserId}) and all associated data", slug, userId);
+        return true;
     }
 
     public async Task<PaginatedResponse<UserListItemResponse>> GetUsersPage(
