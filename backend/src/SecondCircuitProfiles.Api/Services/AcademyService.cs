@@ -45,12 +45,21 @@ public class AcademyService(IOptions<AcademySettings> options, ILogger<AcademySe
 
         try
         {
-            // Delete existing clone
+            // Clear existing content without deleting the mount point itself
             if (Directory.Exists(clonePath))
-                Directory.Delete(clonePath, recursive: true);
+            {
+                foreach (var dir in Directory.GetDirectories(clonePath))
+                    Directory.Delete(dir, recursive: true);
+                foreach (var file in Directory.GetFiles(clonePath))
+                    File.Delete(file);
+            }
+            else
+            {
+                Directory.CreateDirectory(clonePath);
+            }
 
             // Clone fresh
-            var cloneResult = await RunGit("clone", _settings.RepoUrl, clonePath);
+            var cloneResult = await RunGit("clone", _settings.RepoUrl, "--", clonePath);
             if (!cloneResult.Success)
                 return new SyncResult(false, $"git clone failed: {cloneResult.Error}", 0, DateTime.UtcNow);
 
