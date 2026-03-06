@@ -42,11 +42,13 @@ builder.Services.AddSingleton<ICommentService, CommentService>();
 builder.Services.AddSingleton<IThoughtService, ThoughtService>();
 builder.Services.AddHttpClient<IDiscordService, DiscordService>();
 builder.Services.AddSingleton<IPigService, PigService>();
+builder.Services.AddSingleton<IYahtzeeService, YahtzeeService>();
 builder.Services.AddSingleton<IRuleService, RuleService>();
 builder.Services.AddSingleton<IAcademyService, AcademyService>();
 builder.Services.AddSingleton<INotificationService, NotificationService>();
 builder.Services.AddSingleton<IApplicationService, ApplicationService>();
 builder.Services.AddHostedService<PigCleanupService>();
+builder.Services.AddHostedService<YahtzeeCleanupService>();
 
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
@@ -77,7 +79,8 @@ builder.Services.AddAuthentication(options =>
         {
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/pig"))
+            if (!string.IsNullOrEmpty(accessToken) &&
+                (path.StartsWithSegments("/hubs/pig") || path.StartsWithSegments("/hubs/yahtzee")))
                 context.Token = accessToken;
             return Task.CompletedTask;
         }
@@ -207,5 +210,6 @@ app.UseAuthorization();
 app.UseMiddleware<LastSeenMiddleware>();
 app.MapControllers();
 app.MapHub<PigHub>("/hubs/pig");
+app.MapHub<YahtzeeHub>("/hubs/yahtzee");
 
 app.Run();

@@ -168,6 +168,9 @@ export const setUserThoughtOverride = (userId, data) => api.put(`/api/admin/thou
 export const createPigGame = (customName) => api.post('/api/pig', { customName: customName || null })
 export const getOpenPigGames = (page = 1, pageSize = 20) => api.get('/api/pig', { params: { page, pageSize } })
 
+export const createYahtzeeGame = (customName) => api.post('/api/yahtzee', { customName: customName || null })
+export const getOpenYahtzeeGames = (page = 1, pageSize = 20) => api.get('/api/yahtzee', { params: { page, pageSize } })
+
 // ── Community Rules ────────────────────────────────────────────────────────────
 export const getRules = () => api.get('/api/rules')
 export const getRuleById = (id) => api.get(`/api/rules/${id}`)

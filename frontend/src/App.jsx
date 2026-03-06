@@ -17,6 +17,8 @@ import ThoughtPage from './pages/ThoughtPage'
 import LoadingSpinner from './components/LoadingSpinner'
 import PigGameList from './pages/PigGameList'
 import PigGame from './pages/PigGame'
+import YahtzeeGameList from './pages/YahtzeeGameList'
+import YahtzeeGame from './pages/YahtzeeGame'
 import RuleDetail from './pages/RuleDetail'
 import AdminRules from './pages/AdminRules'
 import AcademyLanding from './pages/AcademyLanding'
@@ -61,6 +63,8 @@ export default function App() {
                 <Route path="/profiles/:slug" element={<Layout><ProfileDetail /></Layout>} />
                 <Route path="/pig" element={<Layout><PigGameList /></Layout>} />
                 <Route path="/pig/:slug" element={<PigGame />} />
+                <Route path="/yahtzee" element={<Layout><YahtzeeGameList /></Layout>} />
+                <Route path="/yahtzee/:slug" element={<ProtectedRoute><YahtzeeGame /></ProtectedRoute>} />
                 <Route path="/thoughts/:slug" element={<Layout><ThoughtPage /></Layout>} />
                 <Route path="/academy" element={<Layout><AcademyLanding /></Layout>} />
                 <Route path="/academy/:category" element={<Layout><AcademyCategory /></Layout>} />
