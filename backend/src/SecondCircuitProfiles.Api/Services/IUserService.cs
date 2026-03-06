@@ -5,6 +5,8 @@ namespace SecondCircuitProfiles.Api.Services;
 
 public interface IUserService
 {
+    Task<User?> GetById(string id);
+    Task<List<User>> GetByIds(IEnumerable<string> ids);
     Task<User?> GetBySlug(string slug);
     Task<User?> GetByDiscordId(string discordId);
     Task<User> FindOrCreate(string discordId, string discordUsername, bool isAdmin);

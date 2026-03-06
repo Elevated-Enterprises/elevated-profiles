@@ -29,6 +29,10 @@ public class MongoDbContext
     public IMongoCollection<ThoughtRead> ThoughtReads { get; }
     public IMongoCollection<ProfileVisit> ProfileVisits { get; }
     public IMongoCollection<AcademyRead> AcademyReads { get; }
+    public IMongoCollection<ApplicationFormType> ApplicationFormTypes { get; }
+    public IMongoCollection<ApplicationSubmission> ApplicationSubmissions { get; }
+    public IMongoCollection<ApplicationSubmissionHistory> ApplicationSubmissionHistory { get; }
+    public IMongoCollection<Notification> Notifications { get; }
 
     public MongoDbContext(IOptions<MongoDbSettings> settings)
     {
@@ -57,6 +61,10 @@ public class MongoDbContext
         ThoughtReads = database.GetCollection<ThoughtRead>("thought_reads");
         ProfileVisits = database.GetCollection<ProfileVisit>("profile_visits");
         AcademyReads = database.GetCollection<AcademyRead>("academy_reads");
+        ApplicationFormTypes = database.GetCollection<ApplicationFormType>("application_form_types");
+        ApplicationSubmissions = database.GetCollection<ApplicationSubmission>("application_submissions");
+        ApplicationSubmissionHistory = database.GetCollection<ApplicationSubmissionHistory>("application_submission_history");
+        Notifications = database.GetCollection<Notification>("notifications");
 
         EnsureIndexes();
     }
@@ -203,6 +211,37 @@ public class MongoDbContext
                 Builders<AcademyRead>.IndexKeys
                     .Ascending(r => r.ArticlePath)
                     .Descending(r => r.ReadAt))
+        ]);
+
+        ApplicationFormTypes.Indexes.CreateOne(new CreateIndexModel<ApplicationFormType>(
+            Builders<ApplicationFormType>.IndexKeys.Ascending(f => f.Name)));
+
+        ApplicationSubmissions.Indexes.CreateMany([
+            new CreateIndexModel<ApplicationSubmission>(
+                Builders<ApplicationSubmission>.IndexKeys
+                    .Ascending(s => s.UserId)
+                    .Ascending(s => s.FormTypeId),
+                new CreateIndexOptions { Unique = true }),
+            new CreateIndexModel<ApplicationSubmission>(
+                Builders<ApplicationSubmission>.IndexKeys.Ascending(s => s.FormTypeId)),
+            new CreateIndexModel<ApplicationSubmission>(
+                Builders<ApplicationSubmission>.IndexKeys.Ascending(s => s.State))
+        ]);
+
+        ApplicationSubmissionHistory.Indexes.CreateOne(new CreateIndexModel<ApplicationSubmissionHistory>(
+            Builders<ApplicationSubmissionHistory>.IndexKeys
+                .Ascending(h => h.SubmissionId)
+                .Descending(h => h.ChangedAt)));
+
+        Notifications.Indexes.CreateMany([
+            new CreateIndexModel<Notification>(
+                Builders<Notification>.IndexKeys
+                    .Ascending(n => n.UserId)
+                    .Descending(n => n.CreatedAt)),
+            new CreateIndexModel<Notification>(
+                Builders<Notification>.IndexKeys
+                    .Ascending(n => n.UserId)
+                    .Ascending(n => n.IsRead))
         ]);
     }
 }

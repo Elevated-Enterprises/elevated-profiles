@@ -20,6 +20,10 @@ import PigGame from './pages/PigGame'
 import RuleDetail from './pages/RuleDetail'
 import AdminRules from './pages/AdminRules'
 import AcademyLanding from './pages/AcademyLanding'
+import Applications from './pages/Applications'
+import ApplicationSubmission from './pages/ApplicationSubmission'
+import AdminApplications from './pages/AdminApplications'
+import { NotificationProvider } from './context/NotificationContext'
 import AcademyCategory from './pages/AcademyCategory'
 import AcademyArticle from './pages/AcademyArticle'
 
@@ -44,6 +48,7 @@ export default function App() {
       <UserSettingsProvider>
         <SocialProvider>
           <RulesProvider>
+            <NotificationProvider>
             <BrowserRouter>
               <Routes>
                 <Route path="/login" element={<Login />} />
@@ -80,9 +85,13 @@ export default function App() {
                     </AdminRoute>
                   }
                 />
+                <Route path="/applications" element={<Layout><ProtectedRoute><Applications /></ProtectedRoute></Layout>} />
+                <Route path="/applications/:id" element={<Layout><ProtectedRoute><ApplicationSubmission /></ProtectedRoute></Layout>} />
+                <Route path="/admin/applications" element={<AdminRoute><Layout><AdminApplications /></Layout></AdminRoute>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
+            </NotificationProvider>
           </RulesProvider>
         </SocialProvider>
       </UserSettingsProvider>

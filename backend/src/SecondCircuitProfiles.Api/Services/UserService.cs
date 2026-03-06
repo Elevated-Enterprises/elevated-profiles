@@ -13,6 +13,20 @@ public class UserService(
     IStatusService statusService,
     IImageService imageService) : IUserService
 {
+    public async Task<User?> GetById(string id)
+    {
+        return await db.Users.Find(u => u.Id == id).FirstOrDefaultAsync();
+    }
+
+    public async Task<List<User>> GetByIds(IEnumerable<string> ids)
+    {
+        var idList = ids.ToList();
+        if (idList.Count == 0) return [];
+        return await db.Users
+            .Find(Builders<User>.Filter.In(u => u.Id, idList))
+            .ToListAsync();
+    }
+
     public async Task<User?> GetBySlug(string slug)
     {
         return await db.Users.Find(u => u.Slug == slug).FirstOrDefaultAsync();

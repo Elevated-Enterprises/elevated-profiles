@@ -741,6 +741,14 @@ export default function Admin() {
     <div className="max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold text-stone-800 dark:text-stone-100 mb-6">Admin</h1>
       <div className="mb-6">
+      <div className="mb-6">
+        <Link
+          to="/admin/applications"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl hover:border-amber-300 dark:hover:border-amber-600 text-stone-700 dark:text-stone-200 transition-colors"
+        >
+          Manage Application Forms u2192
+        </Link>
+      </div>
         <Link
           to="/admin/rules"
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl hover:border-amber-300 dark:hover:border-amber-600 text-stone-700 dark:text-stone-200 transition-colors"

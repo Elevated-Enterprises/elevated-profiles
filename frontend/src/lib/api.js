@@ -178,6 +178,34 @@ export const reorderRules = (ruleIds) => api.put('/api/rules/order', { ruleIds }
 export const markRuleRead = (id) => api.post(`/api/rules/${id}/read`)
 export const getRulesUnreadCount = () => api.get('/api/rules/unread-count')
 
+
+// ── Applications ─────────────────────────────────────────────────────────────
+export const getAvailableForms = () => api.get('/api/applications/available')
+export const getMySubmissions = () => api.get('/api/applications/my')
+export const getSubmission = (id) => api.get(`/api/applications/${id}`)
+export const startSubmission = (formTypeId) => api.post('/api/applications/start', { formTypeId })
+export const saveAnswers = (id, answers) => api.put(`/api/applications/${id}/answers`, { answers })
+export const submitApplication = (id) => api.post(`/api/applications/${id}/submit`)
+export const retractApplication = (id) => api.post(`/api/applications/${id}/retract`)
+
+// ── Admin: Applications ───────────────────────────────────────────────────────
+export const getAdminApplicationFormTypes = () => api.get('/api/admin/applications/form-types')
+export const getAdminApplicationFormType = (id) => api.get(`/api/admin/applications/form-types/${id}`)
+export const createAdminApplicationFormType = (data) => api.post('/api/admin/applications/form-types', data)
+export const updateAdminApplicationFormType = (id, data) => api.put(`/api/admin/applications/form-types/${id}`, data)
+export const getAdminSubmissions = (params) => api.get('/api/admin/applications', { params })
+export const getAdminSubmission = (id) => api.get(`/api/admin/applications/${id}`)
+export const startReviewSubmission = (id) => api.post(`/api/admin/applications/${id}/start-review`)
+export const acceptSubmission = (id) => api.post(`/api/admin/applications/${id}/accept`)
+export const rejectSubmission = (id, remarks) => api.post(`/api/admin/applications/${id}/reject`, { remarks: remarks || null })
+export const lockOutSubmission = (id) => api.post(`/api/admin/applications/${id}/lockout`)
+export const assignForm = (formTypeId, userSlug, lockedOut = false) => api.post('/api/admin/applications/assign', { formTypeId, userSlug, lockedOut })
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+export const getNotifications = () => api.get('/api/notifications')
+export const getNotificationsUnreadCount = () => api.get('/api/notifications/unread-count')
+export const markNotificationRead = (id) => api.put(`/api/notifications/${id}/read`)
+export const markAllNotificationsRead = () => api.put('/api/notifications/read-all')
 // ── Academy ──────────────────────────────────────────────────────────────────
 
 export const getAcademyIndex = () => api.get('/api/academy/index')

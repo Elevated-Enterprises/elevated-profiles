@@ -44,6 +44,8 @@ builder.Services.AddHttpClient<IDiscordService, DiscordService>();
 builder.Services.AddSingleton<IPigService, PigService>();
 builder.Services.AddSingleton<IRuleService, RuleService>();
 builder.Services.AddSingleton<IAcademyService, AcademyService>();
+builder.Services.AddSingleton<INotificationService, NotificationService>();
+builder.Services.AddSingleton<IApplicationService, ApplicationService>();
 builder.Services.AddHostedService<PigCleanupService>();
 
 // JWT Authentication
