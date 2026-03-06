@@ -90,6 +90,8 @@ for (var i = IdleTimeoutSeconds; i >= 0; i--) {
 }
 ```
 
+The `IdleCountdown` event is broadcast to the **entire game group** (all players and watchers), not just the active player.
+
 ### 4. Cleanup service (`Services/{Name}CleanupService.cs`)
 
 Copy `PigCleanupService.cs` verbatim, replace `Pig` → `{Name}` throughout.
@@ -171,6 +173,7 @@ Copy `PigGame.jsx`. The reducer's action types and state shape will change most 
 - SignalR connection at `/hubs/{prefix}?gameSlug={slug}&access_token={token}`
 - The `Avatar` helper (deterministic gradient, reuse as-is)
 - `ParticipantCard` structure
+- `IdleCountdownRing` — visual SVG ring countdown shown to all players. State needs both `idleCountdown` (current seconds) and `idleCountdownMax` (set once when countdown starts, i.e. when `state.idleCountdown === null` before the first `IDLE_COUNTDOWN` event). Reset both to `null` on every turn transition. Ring goes amber → red + pulsing below 33% (120° of 360°).
 
 ---
 

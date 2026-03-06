@@ -51,6 +51,7 @@ const initialState = {
   currentTurnScore: 0,
   chat: [],
   idleCountdown: null,
+  idleCountdownMax: null,
   winner: null,
   playAgainVoteYes: 0,
   playAgainVoteNo: 0,
@@ -103,6 +104,7 @@ function reducer(state, action) {
         lastDiceValue: null,
         lastPigUsername: null,
         idleCountdown: null,
+        idleCountdownMax: null,
       }
 
     case 'GAME_CANCELLED':
@@ -132,6 +134,7 @@ function reducer(state, action) {
         lastPigUsername: pigUsername,
         currentTurnScore: action.turnScore,
         idleCountdown: null,
+        idleCountdownMax: null,
       }
     }
 
@@ -151,6 +154,7 @@ function reducer(state, action) {
         currentTurnScore: 0,
         lastDiceValue: null,
         idleCountdown: null,
+        idleCountdownMax: null,
       }
     }
 
@@ -166,12 +170,17 @@ function reducer(state, action) {
         currentTurnScore: 0,
         lastDiceValue: null,
         idleCountdown: null,
+        idleCountdownMax: null,
         chat: [...state.chat, systemMsg(`${action.username} was skipped (${action.reason}).`)],
       }
     }
 
     case 'IDLE_COUNTDOWN':
-      return { ...state, idleCountdown: action.seconds }
+      return {
+        ...state,
+        idleCountdown: action.seconds,
+        idleCountdownMax: state.idleCountdown === null ? action.seconds : state.idleCountdownMax,
+      }
 
     case 'GAME_WON':
       return {
@@ -187,6 +196,7 @@ function reducer(state, action) {
           })),
         } : state.game,
         idleCountdown: null,
+        idleCountdownMax: null,
         chat: [...state.chat, systemMsg(`🏆 ${action.winnerUsername} wins with ${action.scores[action.winnerUserId]} points!`)],
       }
 
@@ -216,6 +226,7 @@ function reducer(state, action) {
         lastPigUsername: null,
         currentTurnScore: 0,
         idleCountdown: null,
+        idleCountdownMax: null,
         playAgainVoteYes: 0,
         playAgainVoteNo: 0,
         myPlayAgainVote: null,
@@ -328,6 +339,39 @@ function DiceDisplay({ value }) {
   return (
     <div className={`text-8xl leading-none transition-all duration-200 select-none ${value === 1 ? 'grayscale opacity-50' : ''}`}>
       {value ? faces[value] : '🎲'}
+    </div>
+  )
+}
+
+function IdleCountdownRing({ seconds, maxSeconds }) {
+  const size = 72
+  const strokeWidth = 6
+  const radius = (size - strokeWidth * 2) / 2
+  const circumference = 2 * Math.PI * radius
+  const progress = maxSeconds > 0 ? seconds / maxSeconds : 1
+  const offset = circumference * (1 - progress)
+  const isLow = progress < 120 / 360
+
+  return (
+    <div className={`inline-flex items-center justify-center ${isLow ? 'animate-pulse' : ''}`}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle
+          cx={size / 2} cy={size / 2} r={radius}
+          fill="none"
+          strokeWidth={strokeWidth}
+          className="stroke-stone-200 dark:stroke-stone-700"
+        />
+        <circle
+          cx={size / 2} cy={size / 2} r={radius}
+          fill="none"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className={isLow ? 'stroke-red-500' : 'stroke-amber-400'}
+          style={{ transition: 'stroke-dashoffset 0.9s linear, stroke 0.3s ease' }}
+        />
+      </svg>
     </div>
   )
 }
@@ -777,10 +821,13 @@ export default function PigGame() {
                   </p>
                 )}
 
-                {/* Idle countdown */}
-                {state.idleCountdown !== null && state.idleCountdown <= 10 && (
-                  <div className={`text-sm font-bold mb-3 ${state.idleCountdown <= 5 ? 'text-red-500' : 'text-amber-500'}`}>
-                    ⏱ {state.idleCountdown}s
+                {/* Idle countdown ring */}
+                {state.idleCountdown !== null && (
+                  <div className="flex justify-center mb-3">
+                    <IdleCountdownRing
+                      seconds={state.idleCountdown}
+                      maxSeconds={state.idleCountdownMax ?? state.idleCountdown}
+                    />
                   </div>
                 )}
 
