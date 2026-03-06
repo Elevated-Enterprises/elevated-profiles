@@ -574,7 +574,7 @@ public class PigService(
                 else if (maxOtherScore - bot.Score > 20)
                     target = 25; // behind — be aggressive
 
-                if (game.CurrentTurnScore >= target)
+                if (bot.Score + game.CurrentTurnScore >= WinScore || game.CurrentTurnScore >= target)
                 {
                     // Hold
                     bot.Score += game.CurrentTurnScore;

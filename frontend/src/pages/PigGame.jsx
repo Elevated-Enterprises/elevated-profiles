@@ -295,7 +295,7 @@ function Avatar({ username, avatarUrl, size = 'md' }) {
   )
 }
 
-function ParticipantCard({ participant, isGm, isCurrentPlayer, isMine, onKick, showKick, userSlug }) {
+function ParticipantCard({ participant, isGm, isCurrentPlayer, isMine, onKick, showKick, userSlug, showBar, currentTurnScore }) {
   return (
     <div className={`flex items-center gap-3 p-2.5 rounded-xl transition-colors ${
       isCurrentPlayer ? 'bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-300 dark:ring-amber-700' : 'hover:bg-stone-50 dark:hover:bg-stone-750'
@@ -321,8 +321,20 @@ function ParticipantCard({ participant, isGm, isCurrentPlayer, isMine, onKick, s
           {participant.role === 'watcher' && <span className="text-xs bg-stone-100 dark:bg-stone-700 text-stone-500 dark:text-stone-400 px-1.5 py-0.5 rounded-full">Watcher</span>}
           {isCurrentPlayer && <span className="text-xs bg-amber-400 dark:bg-amber-600 text-white px-1.5 py-0.5 rounded-full">Playing</span>}
         </div>
-        {participant.score > 0 && (
-          <div className="text-xs text-stone-500 dark:text-stone-400">{participant.score} pts</div>
+        {showBar ? (
+          <div className="w-full pr-1">
+            <div className="text-xs text-stone-500 dark:text-stone-400">
+              {participant.score} pts
+              {isCurrentPlayer && currentTurnScore > 0 && (
+                <span className="text-red-300 dark:text-red-400 ml-1">+{currentTurnScore}</span>
+              )}
+            </div>
+            <ScoreBar score={participant.score} turnScore={currentTurnScore ?? 0} isActive={isCurrentPlayer} />
+          </div>
+        ) : (
+          participant.score > 0 && (
+            <div className="text-xs text-stone-500 dark:text-stone-400">{participant.score} pts</div>
+          )
         )}
       </div>
       {showKick && !isMine && (
@@ -343,6 +355,28 @@ function DiceDisplay({ value }) {
   return (
     <div className={`text-8xl leading-none transition-all duration-200 select-none ${value === 1 ? 'grayscale opacity-50' : ''}`}>
       {value ? faces[value] : '🎲'}
+    </div>
+  )
+}
+
+function ScoreBar({ score, turnScore, isActive }) {
+  const bankedPct = Math.min((score / 100) * 100, 100)
+  const turnPct = isActive && turnScore > 0
+    ? Math.min((turnScore / 100) * 100, 100 - bankedPct)
+    : 0
+
+  return (
+    <div className="mt-1.5 h-2 bg-stone-100 dark:bg-stone-700 rounded-full overflow-hidden relative">
+      <div
+        className="absolute inset-y-0 left-0 transition-all duration-500"
+        style={{ width: `${bankedPct}%`, backgroundColor: '#dc2626' }}
+      />
+      {turnPct > 0 && (
+        <div
+          className="absolute inset-y-0 transition-all duration-300"
+          style={{ left: `${bankedPct}%`, width: `${turnPct}%`, backgroundColor: '#fca5a5' }}
+        />
+      )}
     </div>
   )
 }
@@ -806,6 +840,8 @@ export default function PigGame() {
                         onKick={handleKick}
                         showKick={isGm}
                         userSlug={p.userSlug}
+                        showBar
+                        currentTurnScore={uid === activeUserId ? state.currentTurnScore : 0}
                       />
                     )
                   })}
