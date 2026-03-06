@@ -37,6 +37,9 @@ public class PigParticipant
     [BsonElement("isConnected")]
     public bool IsConnected { get; set; } = true;
 
+    [BsonElement("isBot")]
+    public bool IsBot { get; set; }
+
     // Transient — not persisted to MongoDB
     [BsonIgnore]
     public string? ConnectionId { get; set; }

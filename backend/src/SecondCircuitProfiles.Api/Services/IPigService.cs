@@ -10,7 +10,8 @@ public record PigParticipantDto(
     string Role,
     int Score,
     int ConsecutiveSkips,
-    bool IsConnected);
+    bool IsConnected,
+    bool IsBot);
 
 public record PigGameSummary(
     string Slug,
@@ -55,5 +56,7 @@ public interface IPigService
     Task PlayAgainVoteAsync(string slug, string userId, bool vote);
     Task InitiatePlayAgainAsync(string slug, string userId);
     Task SendChatAsync(string slug, string userId, string username, string role, string text);
+    Task AddBotAsync(string slug, string gmUserId);
+    Task RemoveBotAsync(string slug, string gmUserId, string botUserId);
     Task CleanupAbandonedGamesAsync();
 }

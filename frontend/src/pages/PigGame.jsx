@@ -300,11 +300,14 @@ function ParticipantCard({ participant, isGm, isCurrentPlayer, isMine, onKick, s
     <div className={`flex items-center gap-3 p-2.5 rounded-xl transition-colors ${
       isCurrentPlayer ? 'bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-300 dark:ring-amber-700' : 'hover:bg-stone-50 dark:hover:bg-stone-750'
     }`}>
-      <div className="relative group cursor-pointer" onClick={() => userSlug && window.open(`/profiles/${userSlug}`, '_blank')}>
-        <div className="transition-transform group-hover:scale-110 duration-200">
+      <div
+        className={`relative ${participant.isBot ? '' : 'group cursor-pointer'}`}
+        onClick={() => !participant.isBot && userSlug && window.open(`/profiles/${userSlug}`, '_blank')}
+      >
+        <div className={`transition-transform duration-200 ${participant.isBot ? '' : 'group-hover:scale-110'}`}>
           <Avatar username={participant.username} avatarUrl={participant.avatarUrl} />
         </div>
-        {!participant.isConnected && (
+        {!participant.isConnected && !participant.isBot && (
           <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-stone-400 rounded-full border-2 border-white dark:border-stone-800" title="Disconnected" />
         )}
       </div>
@@ -314,6 +317,7 @@ function ParticipantCard({ participant, isGm, isCurrentPlayer, isMine, onKick, s
             {participant.username}
           </span>
           {isGm && <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">GM</span>}
+          {participant.isBot && <span className="text-xs bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 px-1.5 py-0.5 rounded-full">Bot</span>}
           {participant.role === 'watcher' && <span className="text-xs bg-stone-100 dark:bg-stone-700 text-stone-500 dark:text-stone-400 px-1.5 py-0.5 rounded-full">Watcher</span>}
           {isCurrentPlayer && <span className="text-xs bg-amber-400 dark:bg-amber-600 text-white px-1.5 py-0.5 rounded-full">Playing</span>}
         </div>
@@ -323,9 +327,9 @@ function ParticipantCard({ participant, isGm, isCurrentPlayer, isMine, onKick, s
       </div>
       {showKick && !isMine && (
         <button
-          onClick={() => onKick(participant.userId)}
+          onClick={() => onKick(participant.userId, participant.isBot)}
           className="text-xs text-stone-400 hover:text-red-500 dark:hover:text-red-400 transition-colors px-1"
-          title="Kick"
+          title={participant.isBot ? 'Remove bot' : 'Kick'}
         >
           ✕
         </button>
@@ -613,7 +617,14 @@ export default function PigGame() {
   const handleStart = () => send('StartGame')
   const handleCancel = () => { if (window.confirm('Cancel this game?')) send('CancelGame') }
   const handleLeave = () => { if (window.confirm('Leave the game?')) send('LeaveGame') }
-  const handleKick = (userId) => { if (window.confirm('Kick this player?')) send('KickPlayer', userId) }
+  const handleKick = (userId, isBot) => {
+    if (isBot && state.phase === 'lobby') {
+      if (window.confirm('Remove this bot?')) send('RemoveBot', userId)
+    } else {
+      if (window.confirm('Kick this player?')) send('KickPlayer', userId)
+    }
+  }
+  const handleAddBot = () => send('AddBot')
   const handleInitiatePlayAgain = () => send('InitiatePlayAgain')
   const handlePlayAgainVote = (vote) => {
     dispatch({ type: 'MY_PLAY_AGAIN_VOTE', vote })
@@ -755,6 +766,13 @@ export default function PigGame() {
                     className="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors"
                   >
                     {players.length < 2 ? 'Waiting for players...' : 'Start Game'}
+                  </button>
+                  <button
+                    onClick={handleAddBot}
+                    disabled={players.length >= 6}
+                    className="bg-sky-500 hover:bg-sky-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors"
+                  >
+                    + Add Bot
                   </button>
                   <button
                     onClick={handleCancel}

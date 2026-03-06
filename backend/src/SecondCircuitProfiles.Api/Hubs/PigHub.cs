@@ -138,6 +138,20 @@ public class PigHub(IPigService pigService, ILogger<PigHub> logger) : Hub
         await pigService.PlayAgainVoteAsync(slug, UserId, vote);
     }
 
+    public async Task AddBot()
+    {
+        var slug = GameSlug;
+        if (slug is null) return;
+        await pigService.AddBotAsync(slug, UserId);
+    }
+
+    public async Task RemoveBot(string botUserId)
+    {
+        var slug = GameSlug;
+        if (slug is null) return;
+        await pigService.RemoveBotAsync(slug, UserId, botUserId);
+    }
+
     public async Task SendChat(string text)
     {
         var slug = GameSlug;

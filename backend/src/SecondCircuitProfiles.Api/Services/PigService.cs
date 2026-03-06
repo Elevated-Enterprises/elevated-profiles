@@ -31,13 +31,13 @@ public class PigService(
         g.Slug, g.Name, g.GmUserId, g.GmUsername, g.Status,
         g.Participants.Select(p => new PigParticipantDto(
             p.UserId, p.Username, p.UserSlug, p.AvatarUrl,
-            p.Role, p.Score, p.ConsecutiveSkips, p.IsConnected)).ToList(),
+            p.Role, p.Score, p.ConsecutiveSkips, p.IsConnected, p.IsBot)).ToList(),
         g.TurnOrder, g.CurrentPlayerIndex, g.CurrentTurnScore, g.PlayAgainVoteActive);
 
     private static List<PigParticipantDto> ToParticipantDtos(IEnumerable<PigParticipant> participants) =>
         participants.Select(p => new PigParticipantDto(
             p.UserId, p.Username, p.UserSlug, p.AvatarUrl,
-            p.Role, p.Score, p.ConsecutiveSkips, p.IsConnected)).ToList();
+            p.Role, p.Score, p.ConsecutiveSkips, p.IsConnected, p.IsBot)).ToList();
 
     private static PigGameSummary ToSummary(PigGame g) => new(
         g.Slug, g.Name, g.GmUsername, g.Status,
@@ -68,9 +68,9 @@ public class PigService(
         var fromDb = await LoadFromDbAsync(slug);
         if (fromDb is null) throw new InvalidOperationException($"Game '{slug}' not found.");
 
-        // Reset IsConnected for all participants (crash recovery)
+        // Reset IsConnected for all human participants (crash recovery); bots are always present
         foreach (var p in fromDb.Participants)
-            p.IsConnected = false;
+            if (!p.IsBot) p.IsConnected = false;
 
         _games[slug] = fromDb;
         return fromDb;
@@ -227,7 +227,7 @@ public class PigService(
                 game.DisconnectTimerCts = null;
 
                 await hub.Clients.Group(GameGroup(slug)).SendAsync("ParticipantJoined",
-                    new { participant = new PigParticipantDto(existing.UserId, existing.Username, existing.UserSlug, existing.AvatarUrl, existing.Role, existing.Score, existing.ConsecutiveSkips, true), participants = ToParticipantDtos(game.Participants) });
+                    new { participant = new PigParticipantDto(existing.UserId, existing.Username, existing.UserSlug, existing.AvatarUrl, existing.Role, existing.Score, existing.ConsecutiveSkips, true, existing.IsBot), participants = ToParticipantDtos(game.Participants) });
             }
             else
             {
@@ -260,7 +260,7 @@ public class PigService(
                 BroadcastOpenGames();
 
                 await hub.Clients.Group(GameGroup(slug)).SendAsync("ParticipantJoined",
-                    new { participant = new PigParticipantDto(participant.UserId, participant.Username, participant.UserSlug, participant.AvatarUrl, participant.Role, participant.Score, participant.ConsecutiveSkips, true), participants = ToParticipantDtos(game.Participants) });
+                    new { participant = new PigParticipantDto(participant.UserId, participant.Username, participant.UserSlug, participant.AvatarUrl, participant.Role, participant.Score, participant.ConsecutiveSkips, true, participant.IsBot), participants = ToParticipantDtos(game.Participants) });
             }
 
             return (ToSnapshot(game), null);
@@ -472,12 +472,21 @@ public class PigService(
 
         await PersistAsync(game);
 
-        // Start idle timer for next player
+        // Start next player's turn (bot or human)
         if (nextUserId != null)
-            StartIdleTimer(game, slug, nextUserId);
+            StartNextPlayerTurn(game, slug, nextUserId);
     }
 
     // ── Idle Timer ────────────────────────────────────────────────────────────
+
+    private void StartNextPlayerTurn(PigGame game, string slug, string nextUserId)
+    {
+        var p = game.GetParticipant(nextUserId);
+        if (p?.IsBot == true)
+            _ = RunBotTurnAsync(slug, nextUserId);
+        else
+            StartIdleTimer(game, slug, nextUserId);
+    }
 
     private void StartIdleTimer(PigGame game, string slug, string expectedUserId)
     {
@@ -532,6 +541,98 @@ public class PigService(
         }
     }
 
+    // ── Bot Turn ──────────────────────────────────────────────────────────────
+
+    private async Task RunBotTurnAsync(string slug, string botUserId)
+    {
+        // Brief delay so the bot feels like a real player thinking
+        await Task.Delay(TimeSpan.FromMilliseconds(1200 + Random.Shared.Next(0, 800)));
+
+        while (true)
+        {
+            if (!_games.TryGetValue(slug, out var game)) return;
+
+            await game.Lock.WaitAsync();
+            try
+            {
+                if (game.Status != PigGameStatus.InProgress) return;
+                if (game.CurrentActiveUserId != botUserId) return;
+
+                var bot = game.GetParticipant(botUserId);
+                if (bot is null) return;
+
+                // Strategy: base target 20, adjusted by relative score
+                var maxOtherScore = game.TurnOrder
+                    .Where(uid => uid != botUserId)
+                    .Select(uid => game.GetParticipant(uid)?.Score ?? 0)
+                    .DefaultIfEmpty(0)
+                    .Max();
+
+                var target = 20;
+                if (bot.Score - maxOtherScore > 20)
+                    target = 15; // well ahead — be conservative
+                else if (maxOtherScore - bot.Score > 20)
+                    target = 25; // behind — be aggressive
+
+                if (game.CurrentTurnScore >= target)
+                {
+                    // Hold
+                    bot.Score += game.CurrentTurnScore;
+                    game.CurrentTurnScore = 0;
+                    game.LastActivity = DateTime.UtcNow;
+
+                    if (bot.Score >= WinScore)
+                    {
+                        game.Status = PigGameStatus.Finished;
+                        await PersistAsync(game);
+                        BroadcastOpenGames();
+
+                        var finalScores = game.Participants.ToDictionary(p => p.UserId, p => p.Score);
+                        await hub.Clients.Group(GameGroup(slug)).SendAsync("GameWon",
+                            new { winnerUserId = botUserId, winnerUsername = bot.Username, scores = finalScores, reason = "normal" });
+                        return;
+                    }
+
+                    await AdvanceTurnAsync(game, slug, "hold", bot.Score);
+                    return;
+                }
+
+                // Roll
+                var value = Random.Shared.Next(1, 7);
+
+                if (value == 1)
+                {
+                    game.CurrentTurnScore = 0;
+                    game.LastActivity = DateTime.UtcNow;
+
+                    await hub.Clients.Group(GameGroup(slug)).SendAsync("DiceRolled",
+                        new { value, turnScore = 0, rolledBy = botUserId });
+
+                    await hub.Clients.Group(GameGroup(slug)).SendAsync("ChatMessage",
+                        new { username = "System", role = "system",
+                              text = $"🐷 {bot.Username} rolled a 1 — Pig! Turn lost.",
+                              timestamp = DateTime.UtcNow, isSystem = true });
+
+                    await AdvanceTurnAsync(game, slug, "pig", null);
+                    return;
+                }
+
+                game.CurrentTurnScore += value;
+                game.LastActivity = DateTime.UtcNow;
+
+                await hub.Clients.Group(GameGroup(slug)).SendAsync("DiceRolled",
+                    new { value, turnScore = game.CurrentTurnScore, rolledBy = botUserId });
+            }
+            finally
+            {
+                game.Lock.Release();
+            }
+
+            // Delay between rolls
+            await Task.Delay(TimeSpan.FromMilliseconds(700 + Random.Shared.Next(0, 500)));
+        }
+    }
+
     private async Task SkipActivePlayerAsync(PigGame game, string slug, string reason)
     {
         var userId = game.CurrentActiveUserId;
@@ -578,7 +679,7 @@ public class PigService(
         await PersistAsync(game);
 
         if (nextUserId != null)
-            StartIdleTimer(game, slug, nextUserId);
+            StartNextPlayerTurn(game, slug, nextUserId);
     }
 
     // ── Start Game ────────────────────────────────────────────────────────────
@@ -608,9 +709,9 @@ public class PigService(
             await hub.Clients.Group(GameGroup(slug)).SendAsync("GameStarted",
                 new { turnOrder = game.TurnOrder, participants = ToParticipantDtos(game.Participants) });
 
-            // Start idle timer for first player
+            // Start first player's turn
             var firstPlayer = game.TurnOrder[0];
-            StartIdleTimer(game, slug, firstPlayer);
+            StartNextPlayerTurn(game, slug, firstPlayer);
         }
         finally
         {
@@ -706,7 +807,7 @@ public class PigService(
                 new { reason = "kicked", scores, nextPlayerId = nextUserId, currentTurnScore = 0 });
 
             if (nextUserId != null)
-                StartIdleTimer(game, slug, nextUserId);
+                StartNextPlayerTurn(game, slug, nextUserId);
         }
     }
 
@@ -815,7 +916,7 @@ public class PigService(
                         new { reason = "left", scores, nextPlayerId = nextUserId, currentTurnScore = 0 });
 
                     if (nextUserId != null)
-                        StartIdleTimer(game, slug, nextUserId);
+                        StartNextPlayerTurn(game, slug, nextUserId);
                 }
             }
         }
@@ -882,8 +983,9 @@ public class PigService(
                 return;
             }
 
-            // All participants voted → finalize
-            if (game.PlayAgainVotes.Count >= game.Participants.Count)
+            // All human participants voted → finalize (bots vote automatically)
+            var humanCount = game.Participants.Count(p => !p.IsBot);
+            if (game.PlayAgainVotes.Count >= humanCount)
                 await FinalizePlayAgainAsync(game, slug, forceClose: false);
         }
         finally
@@ -943,6 +1045,7 @@ public class PigService(
         var toRemove = new List<PigParticipant>();
         foreach (var p in game.Participants)
         {
+            if (p.IsBot) continue; // bots always stay for the next round
             if (!game.PlayAgainVotes.TryGetValue(p.UserId, out var voted) || !voted)
                 toRemove.Add(p);
         }
@@ -968,6 +1071,7 @@ public class PigService(
         {
             p.Score = 0;
             p.ConsecutiveSkips = 0;
+            if (p.IsBot) p.IsConnected = true;
         }
 
         game.LastActivity = DateTime.UtcNow;
@@ -991,6 +1095,77 @@ public class PigService(
 
         await hub.Clients.Group(GameGroup(slug)).SendAsync("ChatMessage",
             new { userId, username, role, text = trimmed, timestamp = DateTime.UtcNow, isSystem = false });
+    }
+
+    // ── Bot Management ────────────────────────────────────────────────────────
+
+    public async Task AddBotAsync(string slug, string gmUserId)
+    {
+        if (!_games.TryGetValue(slug, out var game)) return;
+
+        await game.Lock.WaitAsync();
+        try
+        {
+            if (game.GmUserId != gmUserId) return;
+            if (game.Status != PigGameStatus.Lobby) return;
+
+            var activePlayers = game.Participants.Count(p => p.Role == "player");
+            if (activePlayers >= MaxActivePlayers) return;
+
+            // Find next available bot number
+            var botNumber = Enumerable.Range(1, MaxActivePlayers)
+                .First(n => game.Participants.All(p => p.UserId != $"bot-{n}"));
+
+            var bot = new PigParticipant
+            {
+                UserId = $"bot-{botNumber}",
+                Username = $"Bot {botNumber}",
+                Role = "player",
+                IsBot = true,
+                IsConnected = true,
+            };
+            game.Participants.Add(bot);
+            game.LastActivity = DateTime.UtcNow;
+
+            await PersistAsync(game);
+            BroadcastOpenGames();
+
+            var dto = new PigParticipantDto(bot.UserId, bot.Username, null, null, bot.Role, 0, 0, true, true);
+            await hub.Clients.Group(GameGroup(slug)).SendAsync("ParticipantJoined",
+                new { participant = dto, participants = ToParticipantDtos(game.Participants) });
+        }
+        finally
+        {
+            game.Lock.Release();
+        }
+    }
+
+    public async Task RemoveBotAsync(string slug, string gmUserId, string botUserId)
+    {
+        if (!_games.TryGetValue(slug, out var game)) return;
+
+        await game.Lock.WaitAsync();
+        try
+        {
+            if (game.GmUserId != gmUserId) return;
+            if (game.Status != PigGameStatus.Lobby) return;
+
+            var bot = game.GetParticipant(botUserId);
+            if (bot is null || !bot.IsBot) return;
+
+            game.Participants.Remove(bot);
+            game.LastActivity = DateTime.UtcNow;
+
+            await PersistAsync(game);
+            BroadcastOpenGames();
+
+            await hub.Clients.Group(GameGroup(slug)).SendAsync("ParticipantLeft",
+                new { userId = botUserId, participants = ToParticipantDtos(game.Participants) });
+        }
+        finally
+        {
+            game.Lock.Release();
+        }
     }
 
     // ── Cleanup ───────────────────────────────────────────────────────────────
