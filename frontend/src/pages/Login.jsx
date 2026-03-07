@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getAuthConfig } from '../lib/api'
+import { communityName } from '../lib/community'
 
 export default function Login() {
   const { user } = useAuth()
@@ -29,7 +30,7 @@ export default function Login() {
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-stone-100 dark:from-stone-950 dark:via-stone-900 dark:to-stone-800 flex items-center justify-center px-4">
       <div className="bg-white dark:bg-stone-900 rounded-3xl shadow-lg border border-stone-100 dark:border-stone-700 max-w-md w-full p-10 text-center">
         <div className="text-5xl mb-5 select-none">✨</div>
-        <h1 className="text-3xl font-bold text-stone-800 dark:text-stone-100 mb-2">Second Circuit</h1>
+        <h1 className="text-3xl font-bold text-stone-800 dark:text-stone-100 mb-2">{communityName}</h1>
         <p className="text-stone-500 dark:text-stone-400 mb-8 text-sm leading-relaxed">
           Sign in with your Discord account to explore community profiles and companions.
         </p>
@@ -50,7 +51,7 @@ export default function Login() {
         </button>
 
         <p className="text-xs text-stone-400 dark:text-stone-500 mt-6">
-          Members of the Second Circuit Discord server only.
+          Members of the {communityName} Discord server only.
         </p>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getUsers, getStats, getSkills, getLlmProviders, getCommunityRoles, getPartnerCommunities, getThoughts, getAdminTags } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { communityName } from '../lib/community'
 import { getPreference, setPreference } from '../lib/prefs'
 import ProfileCard from '../components/ProfileCard'
 import SearchBar from '../components/SearchBar'
@@ -198,7 +199,7 @@ export default function Landing() {
           Community Profiles
         </h1>
         <p className="text-lg text-stone-500 dark:text-stone-400 max-w-lg mx-auto">
-          Meet the humans and their AI companions of the Second Circuit.
+          Meet the humans and their AI companions of {communityName}.
         </p>
         {stats && (
           <p className="text-sm text-stone-400 dark:text-stone-500 mt-3">

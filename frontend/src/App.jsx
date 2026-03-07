@@ -29,6 +29,7 @@ import AdminApplications from './pages/AdminApplications'
 import { NotificationProvider } from './context/NotificationContext'
 import AcademyCategory from './pages/AcademyCategory'
 import AcademyArticle from './pages/AcademyArticle'
+import Licensing from './pages/Licensing'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -60,6 +61,7 @@ export default function App() {
                 <Route path="/legal/imprint" element={<Layout><Imprint /></Layout>} />
                 <Route path="/legal/rules" element={<Layout><Rules /></Layout>} />
                 <Route path="/legal/rules/:id" element={<Layout><RuleDetail /></Layout>} />
+                <Route path="/legal/licensing" element={<Layout><Licensing /></Layout>} />
                 <Route path="/" element={<Layout><Landing /></Layout>} />
                 <Route path="/profiles/:slug" element={<Layout><ProfileDetail /></Layout>} />
                 <Route path="/games" element={<Layout><Games /></Layout>} />

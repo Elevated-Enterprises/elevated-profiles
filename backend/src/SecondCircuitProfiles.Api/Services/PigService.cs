@@ -33,7 +33,8 @@ public class PigService(
         g.Participants.Select(p => new PigParticipantDto(
             p.UserId, p.Username, p.DisplayName, p.UserSlug, p.AvatarUrl,
             p.Role, p.Score, p.ConsecutiveSkips, p.IsConnected, p.IsBot)).ToList(),
-        g.TurnOrder, g.CurrentPlayerIndex, g.CurrentTurnScore, g.PlayAgainVoteActive);
+        g.TurnOrder, g.CurrentPlayerIndex, g.CurrentTurnScore, g.PlayAgainVoteActive,
+        g.RandomiseTurnOrder);
 
     private static List<PigParticipantDto> ToParticipantDtos(IEnumerable<PigParticipant> participants) =>
         participants.Select(p => new PigParticipantDto(
@@ -690,6 +691,27 @@ public class PigService(
             StartNextPlayerTurn(game, slug, nextUserId);
     }
 
+    // ── Randomise Turn Order ──────────────────────────────────────────────────
+
+    public async Task SetRandomiseTurnOrderAsync(string slug, string userId, bool randomise)
+    {
+        if (!_games.TryGetValue(slug, out var game)) return;
+
+        await game.Lock.WaitAsync();
+        try
+        {
+            if (game.GmUserId != userId) return;
+            if (game.Status != PigGameStatus.Lobby) return;
+
+            game.RandomiseTurnOrder = randomise;
+            await hub.Clients.Group(GameGroup(slug)).SendAsync("RandomiseTurnOrderChanged", randomise);
+        }
+        finally
+        {
+            game.Lock.Release();
+        }
+    }
+
     // ── Start Game ────────────────────────────────────────────────────────────
 
     public async Task StartGameAsync(string slug, string userId)
@@ -707,6 +729,8 @@ public class PigService(
 
             game.Status = PigGameStatus.InProgress;
             game.TurnOrder = players.Select(p => p.UserId).ToList();
+            if (game.RandomiseTurnOrder)
+                Random.Shared.Shuffle(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(game.TurnOrder));
             game.CurrentPlayerIndex = 0;
             game.CurrentTurnScore = 0;
             game.LastActivity = DateTime.UtcNow;
@@ -1192,7 +1216,7 @@ public class PigService(
 
         var hadBots = game.Participants.Any(p => p.IsBot);
         var results = humanPlayers.Select(p =>
-            new GamePlayerResult(p.UserId, p.Username, p.UserSlug, p.UserId == winnerUserId));
+            new GamePlayerResult(p.UserId, p.Username, p.DisplayName, p.UserSlug, p.UserId == winnerUserId));
 
         try { await gameStatsService.RecordGameAsync("pig", results, hadBots); }
         catch (Exception ex) { logger.LogError(ex, "Failed to record pig game stats."); }

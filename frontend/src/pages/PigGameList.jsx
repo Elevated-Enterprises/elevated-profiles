@@ -4,6 +4,7 @@ import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr'
 import { useAuth } from '../context/AuthContext'
 import { createPigGame } from '../lib/api'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { communityName } from '../lib/community'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.profiles.secondcircuit.io'
 
@@ -84,7 +85,7 @@ export default function PigGameList() {
         <div className="text-6xl mb-4">🎲</div>
         <h1 className="text-3xl font-bold text-stone-800 dark:text-stone-100 mb-3">Pig Dice</h1>
         <p className="text-stone-600 dark:text-stone-400 mb-6">
-          A real-time multiplayer dice game for the Second Circuit community.
+          A real-time multiplayer dice game for the {communityName} community.
           Sign in to play!
         </p>
         <Link to="/login" className="inline-block bg-amber-500 hover:bg-amber-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors">

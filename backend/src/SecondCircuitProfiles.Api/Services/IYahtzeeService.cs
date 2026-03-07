@@ -43,7 +43,8 @@ public record YahtzeeGameStateDto(
     int RollCount,
     bool ScoredThisTurn,
     int CurrentPlayerIndex,
-    bool PlayAgainVoteActive);
+    bool PlayAgainVoteActive,
+    bool RandomiseTurnOrder);
 
 public interface IYahtzeeService
 {
@@ -66,6 +67,7 @@ public interface IYahtzeeService
     Task SelectScoreAsync(string slug, string userId, string category);
     Task VotePlayAgainAsync(string slug, string userId, bool vote);
     Task InitiatePlayAgainAsync(string slug, string userId);
+    Task SetRandomiseTurnOrderAsync(string slug, string userId, bool randomise);
     Task SendChatAsync(string slug, string userId, string username, string text);
 
     Task CleanupAbandonedGamesAsync();

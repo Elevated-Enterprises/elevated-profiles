@@ -48,6 +48,7 @@ The frontend image is built with your API URL baked in at compile time. Before y
 |----------|---------|-------------|
 | `VITE_API_BASE_URL` | `https://api.profiles.yourcommunity.io` | URL of your backend API |
 | `VITE_LOGIN_NUDGE_SNOOZE_MINUTES` | `10` | Minutes before re-showing the login prompt (optional, defaults to 10) |
+| `VITE_COMMUNITY_NAME` | `My Community` | Community name shown throughout the UI (optional, defaults to `Second Circuit`) |
 
 Once set, push to `main` — GitHub Actions will build and publish both Docker images to your GitHub Container Registry automatically.
 
@@ -224,7 +225,8 @@ MongoDB defaults to `mongodb://localhost:27017`, database `second_circuit_profil
 
 A few things you will almost certainly want to change:
 
-- **Branding** — colours, logo, site name: edit `frontend/src/` components and Tailwind config
+- **Community name** — set `VITE_COMMUNITY_NAME` in your GitHub Actions repository variables; this replaces "Second Circuit" throughout the UI
+- **Branding / colours** — mount a `custom.css` file into the frontend container (no rebuild needed); see [STYLING.md](STYLING.md) for details and a list of override targets
 - **Profile fields** — what skills, tags, or roles are relevant to your community: update the backend models and frontend forms
 - **Discord server enforcement** — the backend checks guild membership on every login; your `DISCORD_GUILD_ID` controls which server
 - **Admin users** — the first admin must be set directly in MongoDB (`isAdmin: true` on the user document); subsequent admins can be promoted via the admin panel

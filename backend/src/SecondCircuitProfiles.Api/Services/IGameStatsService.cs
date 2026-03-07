@@ -1,6 +1,6 @@
 namespace SecondCircuitProfiles.Api.Services;
 
-public record GamePlayerResult(string UserId, string Username, string? UserSlug, bool IsWinner);
+public record GamePlayerResult(string UserId, string Username, string? DisplayName, string? UserSlug, bool IsWinner);
 
 public record GameStatsEntryDto(
     string UserId,

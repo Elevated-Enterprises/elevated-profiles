@@ -87,6 +87,9 @@ public class PigGame
     [BsonElement("playAgainVotes")]
     public Dictionary<string, bool> PlayAgainVotes { get; set; } = [];
 
+    [BsonElement("randomiseTurnOrder")]
+    public bool RandomiseTurnOrder { get; set; }
+
     [BsonElement("lastActivity")]
     public DateTime LastActivity { get; set; } = DateTime.UtcNow;
 

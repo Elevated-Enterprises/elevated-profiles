@@ -17,7 +17,7 @@ public class GameStatsService(MongoDbContext db) : IGameStatsService
                 Builders<GameStats>.Filter.Eq(s => s.GameType, gameType));
 
             var update = Builders<GameStats>.Update
-                .Set(s => s.Username, p.Username)
+                .Set(s => s.Username, p.DisplayName ?? p.Username)
                 .Set(s => s.UserSlug, p.UserSlug)
                 .Inc(s => s.GamesPlayed, hadBots ? 0 : 1)
                 .Inc(s => s.GamesWon, !hadBots && p.IsWinner ? 1 : 0)

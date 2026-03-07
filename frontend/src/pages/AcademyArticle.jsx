@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import AcademyMarkdownRenderer from '../components/academy/AcademyMarkdownRenderer'
 import ReactionSummary from '../components/reactions/ReactionSummary'
 import ReactionPicker from '../components/reactions/ReactionPicker'
+import { communityName } from '../lib/community'
 
 function headingId(text) {
   return text
@@ -347,7 +348,7 @@ export default function AcademyArticle() {
 
       <div className="mt-4 pt-4 border-t border-stone-100 dark:border-stone-700">
         <p className="text-xs text-stone-300 dark:text-stone-600">
-          Content licensed under Creative Commons. Second Circuit Academy.
+          Content licensed under Creative Commons. {communityName} Academy.
         </p>
       </div>
     </div>

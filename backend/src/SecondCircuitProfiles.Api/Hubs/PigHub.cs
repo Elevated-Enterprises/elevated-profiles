@@ -141,6 +141,13 @@ public class PigHub(IPigService pigService, ILogger<PigHub> logger) : Hub
         await pigService.PlayAgainVoteAsync(slug, UserId, vote);
     }
 
+    public async Task SetRandomiseTurnOrder(bool value)
+    {
+        var slug = GameSlug;
+        if (slug is null) return;
+        await pigService.SetRandomiseTurnOrderAsync(slug, UserId, value);
+    }
+
     public async Task AddBot()
     {
         var slug = GameSlug;

@@ -5,6 +5,7 @@ import CookieBanner from './CookieBanner'
 import LoginNudgeModal from './LoginNudgeModal'
 import { useAuth } from '../context/AuthContext'
 import { useRules } from '../context/RulesContext'
+import { communityName } from '../lib/community'
 
 export default function Layout({ children }) {
   const { sessionExpired, dismissSessionExpired } = useAuth()
@@ -51,7 +52,7 @@ export default function Layout({ children }) {
       </main>
       <footer className="border-t border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 mt-8">
         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-400 dark:text-stone-500">
-          <span>© {new Date().getFullYear()} Second Circuit</span>
+          <span>© {new Date().getFullYear()} {communityName}</span>
           <div className="flex items-center gap-4">
             <a
               href="https://discord.gg/secondcircuit"
@@ -75,6 +76,9 @@ export default function Layout({ children }) {
             </Link>
             <Link to="/legal/imprint" className="hover:text-stone-600 dark:hover:text-stone-400 transition-colors">
               Imprint
+            </Link>
+            <Link to="/legal/licensing" className="hover:text-stone-600 dark:hover:text-stone-400 transition-colors">
+              Licensing
             </Link>
           </div>
         </div>

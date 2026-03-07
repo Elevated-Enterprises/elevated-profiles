@@ -130,6 +130,13 @@ public class YahtzeeHub(IYahtzeeService yahtzeeService, ILogger<YahtzeeHub> logg
         await yahtzeeService.InitiatePlayAgainAsync(slug, UserId);
     }
 
+    public async Task SetRandomiseTurnOrder(bool value)
+    {
+        var slug = GameSlug;
+        if (slug is null) return;
+        await yahtzeeService.SetRandomiseTurnOrderAsync(slug, UserId, value);
+    }
+
     public async Task SendChat(string text)
     {
         var slug = GameSlug;

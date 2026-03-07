@@ -79,6 +79,8 @@ public class YahtzeeGame
     [BsonElement("scoredThisTurn")]    public bool ScoredThisTurn { get; set; }
     [BsonElement("currentPlayerIndex")]public int CurrentPlayerIndex { get; set; }
 
+    [BsonElement("randomiseTurnOrder")] public bool RandomiseTurnOrder { get; set; }
+
     [BsonElement("playAgainVoteActive")]public bool PlayAgainVoteActive { get; set; }
     [BsonElement("playAgainVotes")]     public Dictionary<string, bool> PlayAgainVotes { get; set; } = [];
 

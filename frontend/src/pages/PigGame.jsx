@@ -72,6 +72,10 @@ function reducer(state, action) {
         currentTurnScore: action.data.currentTurnScore,
       }
 
+    case 'RANDOMISE_TURN_ORDER_CHANGED':
+      if (!state.game) return state
+      return { ...state, game: { ...state.game, randomiseTurnOrder: action.value } }
+
     case 'PARTICIPANT_JOINED':
       if (!state.game) return state
       return {
@@ -635,6 +639,10 @@ export default function PigGame() {
       dispatch({ type: 'PLAY_AGAIN_RESULT', participants })
     })
 
+    connection.on('RandomiseTurnOrderChanged', (value) => {
+      dispatch({ type: 'RANDOMISE_TURN_ORDER_CHANGED', value })
+    })
+
     connection.on('ChatMessage', (msg) => {
       dispatch({ type: 'CHAT_MESSAGE', message: msg })
     })
@@ -692,6 +700,7 @@ export default function PigGame() {
     }
   }
   const handleAddBot = () => send('AddBot')
+  const handleToggleRandomise = () => send('SetRandomiseTurnOrder', !state.game?.randomiseTurnOrder)
   const handleInitiatePlayAgain = () => send('InitiatePlayAgain')
   const handlePlayAgainVote = (vote) => {
     dispatch({ type: 'MY_PLAY_AGAIN_VOTE', vote })
@@ -842,6 +851,17 @@ export default function PigGame() {
                     + Add Bot
                   </button>
                   <button
+                    onClick={handleToggleRandomise}
+                    title="Randomise the player turn order at the start of each game"
+                    className={`text-sm px-3 py-2 rounded-xl border transition-colors ${
+                      game.randomiseTurnOrder
+                        ? 'bg-violet-100 dark:bg-violet-900/30 border-violet-300 dark:border-violet-600 text-violet-700 dark:text-violet-300'
+                        : 'border-stone-200 dark:border-stone-600 text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300'
+                    }`}
+                  >
+                    {game.randomiseTurnOrder ? 'Order: Random' : 'Order: Fixed'}
+                  </button>
+                  <button
                     onClick={handleCancel}
                     className="text-sm text-stone-400 hover:text-red-500 transition-colors px-3 py-2"
                   >
@@ -849,7 +869,16 @@ export default function PigGame() {
                   </button>
                 </div>
               )}
-              {!isGm && <p className="text-sm text-stone-400 dark:text-stone-500">Waiting for the Game Master to start...</p>}
+              {!isGm && (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <p className="text-sm text-stone-400 dark:text-stone-500">Waiting for the Game Master to start...</p>
+                  {game.randomiseTurnOrder && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300">
+                      Turn order will be randomised
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

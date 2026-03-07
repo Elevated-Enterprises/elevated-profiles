@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getUser, getImageUrl, deleteCompanion, reorderCompanions, setPrimaryCompanion, getThoughtsByUser, getUserStatus, setStatus, getReactions, getActiveEmojis, addReaction, removeReaction, getProfileInsights } from '../lib/api'
+import { communityName } from '../lib/community'
 import LanguagesModal from '../components/LanguagesModal'
 import { useAuth } from '../context/AuthContext'
 import { useSocial } from '../context/SocialContext'
@@ -723,7 +724,7 @@ export default function ProfileDetail() {
               <span className="text-2xl">🕊️</span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-teal-800 dark:text-teal-200">
-                  Ambassador of {user.ambassadorCommunity.name} to Second Circuit
+                  Ambassador of {user.ambassadorCommunity.name} to {communityName}
                 </p>
                 <a
                   href={user.ambassadorCommunity.discordInviteUrl}

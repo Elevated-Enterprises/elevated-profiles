@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getAvailableForms, startSubmission } from '../lib/api'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { communityName } from '../lib/community'
 
 const STATE_LABELS = {
   Incomplete: { label: 'In progress', cls: 'bg-stone-100 text-stone-600 dark:bg-stone-700 dark:text-stone-300' },
@@ -62,7 +63,7 @@ export default function Applications() {
     <div className="max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold text-stone-800 dark:text-stone-100 mb-2">My Applications</h1>
       <p className="text-sm text-stone-500 dark:text-stone-400 mb-8">
-        Application forms you can submit to apply for areas or roles within Second Circuit.
+        Application forms you can submit to apply for areas or roles within {communityName}.
       </p>
 
       {forms.length === 0 && (

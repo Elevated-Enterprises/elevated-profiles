@@ -47,6 +47,7 @@ export const getMe = () => api.get('/api/auth/me')
 export const getUsers = (params) => api.get('/api/users', { params })
 export const getUser = (slug) => api.get(`/api/users/${slug}`)
 export const getImageUrl = (filename) => `${BASE_URL}/api/images/${filename}`
+export const getLegalDocument = (doc) => api.get(`/api/legal/${doc}`)
 
 export const updateUser = (slug, data) => api.put(`/api/users/${slug}`, data)
 export const updateUserSkills = (slug, skillIds) => api.put(`/api/users/${slug}/skills`, { skillIds })

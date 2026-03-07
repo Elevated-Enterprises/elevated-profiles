@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { getAcademyIndex } from '../lib/api'
+import { communityName } from '../lib/community'
 
 function formatDate(dateStr) {
   if (!dateStr) return null
@@ -39,7 +40,7 @@ export default function AcademyLanding() {
   return (
     <div className="max-w-4xl mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-stone-800 dark:text-stone-100">Second Circuit Academy</h1>
+        <h1 className="text-3xl font-bold text-stone-800 dark:text-stone-100">{communityName} Academy</h1>
         <p className="mt-2 text-stone-500 dark:text-stone-400">
           Knowledge, ethics, and community.
         </p>

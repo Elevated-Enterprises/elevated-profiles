@@ -4,6 +4,7 @@ import { getGameLeaderboard, getReactions, getActiveEmojis, addReaction, removeR
 import { useAuth } from '../context/AuthContext'
 import ReactionSummary from '../components/reactions/ReactionSummary'
 import ReactionPicker from '../components/reactions/ReactionPicker'
+import { communityName } from '../lib/community'
 
 function timeAgo(date) {
   const secs = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
@@ -269,7 +270,7 @@ export default function Games() {
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-stone-800 dark:text-stone-100 mb-1">Games</h1>
-        <p className="text-sm text-stone-500 dark:text-stone-400">Multiplayer games for the Second Circuit community</p>
+        <p className="text-sm text-stone-500 dark:text-stone-400">Multiplayer games for the {communityName} community</p>
       </div>
 
       {/* Game cards */}

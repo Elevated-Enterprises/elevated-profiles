@@ -33,7 +33,8 @@ public record PigGameStateSnapshot(
     List<string> TurnOrder,
     int CurrentPlayerIndex,
     int CurrentTurnScore,
-    bool PlayAgainVoteActive);
+    bool PlayAgainVoteActive,
+    bool RandomiseTurnOrder);
 
 public interface IPigService
 {
@@ -56,6 +57,7 @@ public interface IPigService
     Task LeaveGameAsync(string slug, string userId, string connectionId);
     Task PlayAgainVoteAsync(string slug, string userId, bool vote);
     Task InitiatePlayAgainAsync(string slug, string userId);
+    Task SetRandomiseTurnOrderAsync(string slug, string userId, bool randomise);
     Task SendChatAsync(string slug, string userId, string username, string role, string text);
     Task AddBotAsync(string slug, string gmUserId);
     Task RemoveBotAsync(string slug, string gmUserId, string botUserId);

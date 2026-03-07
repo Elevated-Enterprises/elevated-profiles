@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { postAuthCallback } from '../lib/api'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { communityName } from '../lib/community'
 
 export default function AuthCallback() {
   const [searchParams] = useSearchParams()
@@ -28,7 +29,7 @@ export default function AuthCallback() {
       })
       .catch((err) => {
         if (err.response?.status === 403) {
-          setError('You must be a member of the Second Circuit Discord server to access this site.')
+          setError(`You must be a member of the ${communityName} Discord server to access this site.`)
         } else {
           setError('Authentication failed. Please try again.')
         }

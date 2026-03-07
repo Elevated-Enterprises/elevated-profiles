@@ -179,7 +179,7 @@ public class YahtzeeService(
         g.Slug, g.Name, g.GmUserId, g.GmUsername, g.Status,
         ToParticipantDtos(g.Participants),
         g.CurrentDice, g.HeldDice, g.RollCount, g.ScoredThisTurn,
-        g.CurrentPlayerIndex, g.PlayAgainVoteActive);
+        g.CurrentPlayerIndex, g.PlayAgainVoteActive, g.RandomiseTurnOrder);
 
     private static YahtzeeGameSummaryDto ToSummary(YahtzeeGame g) => new(
         g.Slug, g.Name, g.GmUsername, g.Status,
@@ -462,6 +462,37 @@ public class YahtzeeService(
         }
     }
 
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private static void ShufflePlayers(YahtzeeGame game)
+    {
+        var players = game.Participants.Where(p => p.Role == "player").ToList();
+        var watchers = game.Participants.Where(p => p.Role != "player").ToList();
+        Random.Shared.Shuffle(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(players));
+        game.Participants = [..players, ..watchers];
+    }
+
+    // ── Randomise Turn Order ──────────────────────────────────────────────────
+
+    public async Task SetRandomiseTurnOrderAsync(string slug, string userId, bool randomise)
+    {
+        if (!_games.TryGetValue(slug, out var game)) return;
+
+        await game.Lock.WaitAsync();
+        try
+        {
+            if (game.GmUserId != userId) return;
+            if (game.Status != YahtzeeGameStatus.Lobby) return;
+
+            game.RandomiseTurnOrder = randomise;
+            await hub.Clients.Group(GameGroup(slug)).SendAsync("RandomiseTurnOrderChanged", randomise);
+        }
+        finally
+        {
+            game.Lock.Release();
+        }
+    }
+
     // ── Start / Cancel ────────────────────────────────────────────────────────
 
     public async Task StartGameAsync(string slug, string userId)
@@ -478,6 +509,8 @@ public class YahtzeeService(
             if (players.Count < 2) return;
 
             game.Status = YahtzeeGameStatus.InProgress;
+            if (game.RandomiseTurnOrder)
+                ShufflePlayers(game);
             game.CurrentPlayerIndex = 0;
             game.CurrentDice = [0, 0, 0, 0, 0];
             game.HeldDice = [false, false, false, false, false];
@@ -912,6 +945,8 @@ public class YahtzeeService(
             p.ScoreCard = new YahtzeeScoreCard();
 
         game.Status = YahtzeeGameStatus.InProgress;
+        if (game.RandomiseTurnOrder)
+            ShufflePlayers(game);
         game.CurrentPlayerIndex = 0;
         game.CurrentDice = [0, 0, 0, 0, 0];
         game.HeldDice = [false, false, false, false, false];
@@ -956,7 +991,7 @@ public class YahtzeeService(
 
         var winner = players.OrderByDescending(p => p.ScoreCard.GrandTotal).First();
         var results = players.Select(p =>
-            new GamePlayerResult(p.UserId, p.Username, p.UserSlug, p.UserId == winner.UserId));
+            new GamePlayerResult(p.UserId, p.Username, p.DisplayName, p.UserSlug, p.UserId == winner.UserId));
 
         try { await gameStatsService.RecordGameAsync("yahtzee", results, hadBots: false); }
         catch (Exception ex) { logger.LogError(ex, "Failed to record yahtzee game stats."); }

@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { useUserSettings } from '../context/UserSettingsContext'
 import { useRules } from '../context/RulesContext'
 import NotificationBell from './NotificationBell'
+import { communityName } from '../lib/community'
 
 export default function Navbar() {
   const { user, logout } = useAuth()
@@ -16,8 +17,8 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <Link to="/" className="text-lg sm:text-xl font-bold text-amber-700 hover:text-amber-800 dark:text-amber-500 dark:hover:text-amber-400 transition-colors shrink-0">
-            <span className="hidden sm:inline">Second Circuit</span>
-            <span className="sm:hidden">SC</span>
+            <span className="hidden sm:inline">{communityName}</span>
+            <span className="sm:hidden">{communityName.split(' ').map(w => w[0]).join('')}</span>
           </Link>
           <Link to="/games" className="flex items-center gap-1 sm:gap-1.5 text-sm font-semibold px-2 sm:px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-colors shrink-0">
             🎲<span className="hidden sm:inline"> Games</span>

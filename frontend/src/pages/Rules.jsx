@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getRules } from '../lib/api'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { communityName } from '../lib/community'
 
 export default function Rules() {
   const [rules, setRules] = useState([])
@@ -21,7 +22,7 @@ export default function Rules() {
     <div className="max-w-2xl mx-auto">
       <h1 className="text-3xl font-bold text-stone-800 dark:text-stone-100 mb-6">Community Rules</h1>
       <p className="text-stone-600 dark:text-stone-300 mb-8 text-lg leading-relaxed">
-        Second Circuit is a community for humans and their AI companions. To keep this space
+        {communityName} is a community for humans and their AI companions. To keep this space
         welcoming and meaningful for everyone, we ask all members to follow these guidelines.
       </p>
 
