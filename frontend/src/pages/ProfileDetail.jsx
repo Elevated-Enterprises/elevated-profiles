@@ -106,6 +106,9 @@ export default function ProfileDetail() {
   // Primary companion
   const [primaryCompanionId, setPrimaryCompanionId] = useState(null)
 
+  // Companion reactions (keyed by companion id)
+  const [companionReactions, setCompanionReactions] = useState({})
+
   // Modal state
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [showSkills, setShowSkills] = useState(false)
@@ -206,6 +209,18 @@ export default function ProfileDetail() {
       setProfileInsightsLoading(false)
     }
   }
+
+  // Load reactions for each companion whenever the companion list changes
+  const companionIds = companions.map(c => c.id).join(',')
+  useEffect(() => {
+    if (!companionIds) return
+    companions.forEach(c => {
+      getReactions(c.id, 'companion')
+        .then(({ data }) => setCompanionReactions(prev => ({ ...prev, [c.id]: data })))
+        .catch(() => {})
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companionIds])
 
   // Sync local state from user data
   useEffect(() => {
@@ -481,6 +496,90 @@ export default function ProfileDetail() {
             )}
           </div>
 
+          {/* Companions — first class, directly after meta */}
+          {(canEdit || companions.length > 0) && (
+            <div className="mb-4 pt-3 border-t border-stone-100 dark:border-stone-700">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">
+                  Companions{companions.length > 0 ? ` (${companions.length})` : ''}
+                </span>
+                {canReorder && (
+                  <span className="text-xs text-stone-300 dark:text-stone-600 select-none">· drag to reorder</span>
+                )}
+              </div>
+              <div className="-mx-6 overflow-x-auto">
+                <div className="flex gap-3 pt-8 pb-2 px-6 items-start">
+                  {companions.map((companion, idx) => {
+                    const cReactions = (companionReactions[companion.id] || []).filter(r => r.count > 0)
+                    return (
+                      <div
+                        key={companion.id}
+                        draggable={canReorder}
+                        onDragStart={canReorder ? (e) => handleDragStart(e, idx) : undefined}
+                        onDragOver={canReorder ? (e) => handleDragOver(e, idx) : undefined}
+                        onDrop={canReorder ? (e) => handleDrop(e, idx) : undefined}
+                        onDragEnd={canReorder ? handleDragEnd : undefined}
+                        onClick={() => setSelectedCompanion(companion)}
+                        className={[
+                          'relative flex flex-col items-center w-20 flex-shrink-0 group/comp hover:z-10 transition-all duration-150',
+                          canReorder ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
+                          dragFromIdx === idx ? 'opacity-40' : '',
+                          dragOverIdx === idx && dragFromIdx !== idx
+                            ? 'outline outline-2 outline-amber-300 dark:outline-amber-600 rounded-xl'
+                            : '',
+                        ].filter(Boolean).join(' ')}
+                      >
+                        <div className={[
+                          'w-20 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30 group-hover/comp:scale-[1.5] transition-transform duration-200 origin-center flex-shrink-0',
+                          companion.id === primaryCompanionId ? 'ring-2 ring-amber-400 dark:ring-amber-400' : '',
+                        ].filter(Boolean).join(' ')}>
+                          {companion.profileImageUrl ? (
+                            <img
+                              src={getImageUrl(companion.profileImageUrl)}
+                              alt={companion.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-xl select-none">
+                              ✨
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-xs font-medium text-stone-700 dark:text-stone-200 mt-1 text-center w-full truncate">
+                          {companion.name}
+                        </p>
+                        {companion.alignment != null && (
+                          <p className="text-[10px] text-purple-500 dark:text-purple-400 text-center w-full truncate">
+                            {ALIGNMENT_LABELS[companion.alignment]}
+                          </p>
+                        )}
+                        {cReactions.length > 0 && (
+                          <div className="flex flex-wrap justify-center gap-0.5 mt-0.5">
+                            {cReactions.slice(0, 3).map(r => (
+                              <span key={r.emojiKey} className="text-[10px] leading-none text-stone-500 dark:text-stone-400">
+                                {r.emoji}{r.count > 1 ? r.count : ''}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+
+                  {isOwn && (
+                    <button
+                      onClick={() => setCompanionModal('add')}
+                      className="w-20 h-20 flex-shrink-0 rounded-xl border-2 border-dashed border-stone-300 dark:border-stone-600 hover:border-amber-400 dark:hover:border-amber-500 text-stone-400 dark:text-stone-500 hover:text-amber-500 dark:hover:text-amber-400 flex items-center justify-center text-2xl transition-colors"
+                      aria-label="Add companion"
+                    >
+                      +
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Profile reactions */}
           <div className="mb-4">
             <div className="flex items-center gap-3 flex-wrap">
@@ -643,78 +742,6 @@ export default function ProfileDetail() {
           {!user.ambassadorCommunity && authUser?.isAdmin && (
             <div className="mb-4 flex">
               <SectionEditButton onClick={() => setShowAmbassador(true)} label="Assign Ambassador" />
-            </div>
-          )}
-
-          {/* Companions — compact horizontal strip */}
-          {(canEdit || companions.length > 0) && (
-            <div className="mb-4 pt-3 border-t border-stone-100 dark:border-stone-700">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">
-                  Companions{companions.length > 0 ? ` (${companions.length})` : ''}
-                </span>
-                {canReorder && (
-                  <span className="text-xs text-stone-300 dark:text-stone-600 select-none">· drag to reorder</span>
-                )}
-              </div>
-              <div className="-mx-6 overflow-x-auto">
-                <div className="flex gap-3 pt-8 pb-2 px-6 items-start">
-                  {companions.map((companion, idx) => (
-                    <div
-                      key={companion.id}
-                      draggable={canReorder}
-                      onDragStart={canReorder ? (e) => handleDragStart(e, idx) : undefined}
-                      onDragOver={canReorder ? (e) => handleDragOver(e, idx) : undefined}
-                      onDrop={canReorder ? (e) => handleDrop(e, idx) : undefined}
-                      onDragEnd={canReorder ? handleDragEnd : undefined}
-                      onClick={() => setSelectedCompanion(companion)}
-                      className={[
-                        'relative flex flex-col items-center w-20 flex-shrink-0 group/comp hover:z-10 transition-all duration-150',
-                        canReorder ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-                        dragFromIdx === idx ? 'opacity-40' : '',
-                        dragOverIdx === idx && dragFromIdx !== idx
-                          ? 'outline outline-2 outline-amber-300 dark:outline-amber-600 rounded-xl'
-                          : '',
-                      ].filter(Boolean).join(' ')}
-                    >
-                      <div className={[
-                        'w-20 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30 group-hover/comp:scale-[1.5] transition-transform duration-200 origin-center flex-shrink-0',
-                        companion.id === primaryCompanionId ? 'ring-2 ring-amber-400 dark:ring-amber-400' : '',
-                      ].filter(Boolean).join(' ')}>
-                        {companion.profileImageUrl ? (
-                          <img
-                            src={getImageUrl(companion.profileImageUrl)}
-                            alt={companion.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-xl select-none">
-                            ✨
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-xs font-medium text-stone-700 dark:text-stone-200 mt-1 text-center w-full truncate">
-                        {companion.name}
-                      </p>
-                      {companion.alignment != null && (
-                        <p className="text-[10px] text-purple-500 dark:text-purple-400 text-center w-full truncate">
-                          {ALIGNMENT_LABELS[companion.alignment]}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-
-                  {isOwn && (
-                    <button
-                      onClick={() => setCompanionModal('add')}
-                      className="w-20 h-20 flex-shrink-0 rounded-xl border-2 border-dashed border-stone-300 dark:border-stone-600 hover:border-amber-400 dark:hover:border-amber-500 text-stone-400 dark:text-stone-500 hover:text-amber-500 dark:hover:text-amber-400 flex items-center justify-center text-2xl transition-colors"
-                      aria-label="Add companion"
-                    >
-                      +
-                    </button>
-                  )}
-                </div>
-              </div>
             </div>
           )}
 
