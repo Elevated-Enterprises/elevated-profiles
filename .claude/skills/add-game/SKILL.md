@@ -151,7 +151,9 @@ if (avatarUrl is null && userSlug is not null)
 
 **BroadcastOpenGames()** — call whenever the visible list might change (create, start, join, finish, cancel, close).
 
-**Idle timer** — countdown sent to the entire game group (not just the active player). On expiry, auto-advance the turn (Yahtzee: auto-select worst category; Pig: auto-hold).
+**Idle timer** — countdown sent to the entire game group (not just the active player). On expiry, auto-advance the turn:
+- **Yahtzee** — auto-roll if not yet rolled, then auto-select the worst available category.
+- **Pig** — skip the active player's turn (turn score lost). Track `ConsecutiveSkips`; two skips in a row → kick the player.
 
 **Stats recording** at game end:
 ```csharp
@@ -219,7 +221,7 @@ app.MapHub<{Name}Hub>("/hubs/{prefix}");
 Copy `PigGameList.jsx`. Change:
 - SignalR URL: `/hubs/{prefix}?mode=list&access_token=${token}`
 - Import `create{Name}Game` from `../lib/api`
-- Navigate to `/{prefix}/${res.slug}` after creation
+- Navigate to `/{prefix}/${res.data.slug}` after creation
 - Update display text/headings
 
 ### `frontend/src/pages/{Name}Game.jsx`
@@ -240,11 +242,13 @@ Copy `PigGame.jsx`. The reducer action types and state shape change per game —
 
 ```js
 export const create{Name}Game = (customName) =>
-    api.post('/api/{prefix}', { customName }).then(r => r.data);
+    api.post('/api/{prefix}', { customName: customName || null })
 
 export const getOpen{Name}Games = (page = 1, pageSize = 20) =>
-    api.get('/api/{prefix}', { params: { page, pageSize } }).then(r => r.data);
+    api.get('/api/{prefix}', { params: { page, pageSize } })
 ```
+
+Do **not** add `.then(r => r.data)` — the existing game functions return the raw axios response, and the frontend accesses `res.data.slug`.
 
 ### `frontend/src/App.jsx`
 
@@ -281,3 +285,4 @@ Add nav link next to existing game links.
 - Idle timeout duration (default: 60 s)
 - Bots needed? (Pig has them; Yahtzee does not)
 - Play Again voting needed? (default: yes)
+- On Play Again yes: return to Lobby like Pig (GM must restart), or restart directly like Yahtzee?
