@@ -213,4 +213,7 @@ app.MapControllers();
 app.MapHub<PigHub>("/hubs/pig");
 app.MapHub<YahtzeeHub>("/hubs/yahtzee");
 
+// Restore Academy index from disk if files already exist (e.g. persistent volume after container restart)
+((AcademyService)app.Services.GetRequiredService<IAcademyService>()).InitialiseFromDisk();
+
 app.Run();

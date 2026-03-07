@@ -26,6 +26,25 @@ public class AcademyService(IOptions<AcademySettings> options, ILogger<AcademySe
 {
     private readonly AcademySettings _settings = options.Value;
     private volatile AcademyIndex _index = new(null, [], [], null, 0);
+
+    // Rebuild index from files already on disk (e.g. after a container restart with a persistent volume)
+    public void InitialiseFromDisk()
+    {
+        var clonePath = _settings.ClonePath;
+        if (!Directory.Exists(clonePath) || !Directory.EnumerateFiles(clonePath, "*.md", SearchOption.AllDirectories).Any())
+            return;
+
+        try
+        {
+            var entries = ParseAllArticles(clonePath);
+            _index = BuildIndex(entries, DateTime.UtcNow);
+            logger.LogInformation("Academy index restored from disk: {Count} published articles.", _index.TotalArticles);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to restore Academy index from disk on startup.");
+        }
+    }
     private static readonly Regex FrontmatterRegex = new(
         @"^---\s*\n(.*?)\n---\s*\n?(.*)",
         RegexOptions.Singleline | RegexOptions.Compiled);
