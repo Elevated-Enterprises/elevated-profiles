@@ -31,13 +31,13 @@ public class PigService(
     private static PigGameStateSnapshot ToSnapshot(PigGame g) => new(
         g.Slug, g.Name, g.GmUserId, g.GmUsername, g.Status,
         g.Participants.Select(p => new PigParticipantDto(
-            p.UserId, p.Username, p.UserSlug, p.AvatarUrl,
+            p.UserId, p.Username, p.DisplayName, p.UserSlug, p.AvatarUrl,
             p.Role, p.Score, p.ConsecutiveSkips, p.IsConnected, p.IsBot)).ToList(),
         g.TurnOrder, g.CurrentPlayerIndex, g.CurrentTurnScore, g.PlayAgainVoteActive);
 
     private static List<PigParticipantDto> ToParticipantDtos(IEnumerable<PigParticipant> participants) =>
         participants.Select(p => new PigParticipantDto(
-            p.UserId, p.Username, p.UserSlug, p.AvatarUrl,
+            p.UserId, p.Username, p.DisplayName, p.UserSlug, p.AvatarUrl,
             p.Role, p.Score, p.ConsecutiveSkips, p.IsConnected, p.IsBot)).ToList();
 
     private static PigGameSummary ToSummary(PigGame g) => new(
@@ -91,7 +91,7 @@ public class PigService(
     // ── Create Game ───────────────────────────────────────────────────────────
 
     public async Task<(PigGame game, string? error)> CreateGameAsync(
-        string userId, string username, string? userSlug, string? avatarUrl, string? customName)
+        string userId, string username, string? displayName, string? userSlug, string? avatarUrl, string? customName)
     {
         var slug = await GenerateUniqueSlugAsync();
         var name = string.IsNullOrWhiteSpace(customName) ? $"{username}'s game" : customName.Trim();
@@ -109,6 +109,7 @@ public class PigService(
                 {
                     UserId = userId,
                     Username = username,
+                    DisplayName = displayName,
                     UserSlug = userSlug,
                     AvatarUrl = avatarUrl,
                     Role = "player",
@@ -177,7 +178,7 @@ public class PigService(
     // ── Connection ────────────────────────────────────────────────────────────
 
     public async Task<(PigGameStateSnapshot? state, string? error)> HandleConnectionAsync(
-        string slug, string userId, string username, string? userSlug, string? avatarUrl,
+        string slug, string userId, string username, string? displayName, string? userSlug, string? avatarUrl,
         string connectionId, bool isListMode)
     {
         if (isListMode)
@@ -228,7 +229,7 @@ public class PigService(
                 game.DisconnectTimerCts = null;
 
                 await hub.Clients.Group(GameGroup(slug)).SendAsync("ParticipantJoined",
-                    new { participant = new PigParticipantDto(existing.UserId, existing.Username, existing.UserSlug, existing.AvatarUrl, existing.Role, existing.Score, existing.ConsecutiveSkips, true, existing.IsBot), participants = ToParticipantDtos(game.Participants) });
+                    new { participant = new PigParticipantDto(existing.UserId, existing.Username, existing.DisplayName, existing.UserSlug, existing.AvatarUrl, existing.Role, existing.Score, existing.ConsecutiveSkips, true, existing.IsBot), participants = ToParticipantDtos(game.Participants) });
             }
             else
             {
@@ -248,6 +249,7 @@ public class PigService(
                 {
                     UserId = userId,
                     Username = username,
+                    DisplayName = displayName,
                     UserSlug = userSlug,
                     AvatarUrl = avatarUrl,
                     Role = role,
@@ -261,7 +263,7 @@ public class PigService(
                 BroadcastOpenGames();
 
                 await hub.Clients.Group(GameGroup(slug)).SendAsync("ParticipantJoined",
-                    new { participant = new PigParticipantDto(participant.UserId, participant.Username, participant.UserSlug, participant.AvatarUrl, participant.Role, participant.Score, participant.ConsecutiveSkips, true, participant.IsBot), participants = ToParticipantDtos(game.Participants) });
+                    new { participant = new PigParticipantDto(participant.UserId, participant.Username, participant.DisplayName, participant.UserSlug, participant.AvatarUrl, participant.Role, participant.Score, participant.ConsecutiveSkips, true, participant.IsBot), participants = ToParticipantDtos(game.Participants) });
             }
 
             return (ToSnapshot(game), null);
@@ -1138,7 +1140,7 @@ public class PigService(
             await PersistAsync(game);
             BroadcastOpenGames();
 
-            var dto = new PigParticipantDto(bot.UserId, bot.Username, null, null, bot.Role, 0, 0, true, true);
+            var dto = new PigParticipantDto(bot.UserId, bot.Username, null, null, null, bot.Role, 0, 0, true, true);
             await hub.Clients.Group(GameGroup(slug)).SendAsync("ParticipantJoined",
                 new { participant = dto, participants = ToParticipantDtos(game.Participants) });
         }

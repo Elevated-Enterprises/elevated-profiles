@@ -26,6 +26,9 @@ public class TokenService(IOptions<JwtSettings> jwtSettings) : ITokenService
             new("is_admin", user.IsAdmin.ToString().ToLowerInvariant())
         };
 
+        if (!string.IsNullOrWhiteSpace(user.AlternativeName))
+            claims.Add(new("alternative_name", user.AlternativeName));
+
         var token = new JwtSecurityToken(
             issuer: _settings.Issuer,
             audience: _settings.Audience,

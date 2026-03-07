@@ -124,8 +124,9 @@ function reducer(state, action) {
       }
 
     case 'DICE_ROLLED': {
+      const pigParticipant = state.game?.participants.find(p => p.userId === action.rolledBy)
       const pigUsername = action.value === 1
-        ? (state.game?.participants.find(p => p.userId === action.rolledBy)?.username ?? 'Unknown')
+        ? (pigParticipant?.displayName || (pigParticipant?.username ?? 'Unknown'))
         : null
       return {
         ...state,
@@ -309,10 +310,13 @@ function Avatar({ username, avatarUrl, size = 'md' }) {
   )
 }
 
-function ParticipantCard({ participant, isGm, isCurrentPlayer, isMine, onKick, showKick, userSlug, showBar, currentTurnScore }) {
+function ParticipantCard({ participant, isGm, isCurrentPlayer, isMine, isLeader, onKick, showKick, userSlug, showBar, currentTurnScore }) {
+  const displayName = participant.displayName || participant.username
   return (
     <div className={`flex items-center gap-3 p-2.5 rounded-xl transition-colors ${
-      isCurrentPlayer ? 'bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-300 dark:ring-amber-700' : 'hover:bg-stone-50 dark:hover:bg-stone-750'
+      isLeader ? 'bg-amber-50 dark:bg-amber-900/20 ring-2 ring-amber-400 dark:ring-amber-500' :
+      isCurrentPlayer ? 'bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-300 dark:ring-amber-700' :
+      'hover:bg-stone-50 dark:hover:bg-stone-750'
     }`}>
       <div
         className={`relative ${participant.isBot ? '' : 'group cursor-pointer'}`}
@@ -328,7 +332,7 @@ function ParticipantCard({ participant, isGm, isCurrentPlayer, isMine, onKick, s
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="font-medium text-sm text-stone-800 dark:text-stone-100 truncate">
-            {participant.username}
+            {displayName}
           </span>
           {isGm && <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">GM</span>}
           {participant.isBot && <span className="text-xs bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 px-1.5 py-0.5 rounded-full">Bot</span>}
@@ -856,24 +860,30 @@ export default function PigGame() {
               <div className="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-4 shadow-sm">
                 <h2 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-3">Scoreboard</h2>
                 <div className="space-y-1">
-                  {game.turnOrder.map(uid => {
-                    const p = game.participants.find(x => x.userId === uid)
-                    if (!p) return null
-                    return (
-                      <ParticipantCard
-                        key={uid}
-                        participant={p}
-                        isGm={uid === game.gmUserId}
-                        isCurrentPlayer={uid === activeUserId}
-                        isMine={uid === state.myUserId}
-                        onKick={handleKick}
-                        showKick={isGm}
-                        userSlug={p.userSlug}
-                        showBar
-                        currentTurnScore={uid === activeUserId ? state.currentTurnScore : 0}
-                      />
-                    )
-                  })}
+                  {(() => {
+                    const activePlayers = game.turnOrder.map(uid => game.participants.find(x => x.userId === uid)).filter(Boolean)
+                    const maxScore = Math.max(0, ...activePlayers.map(p => p.score))
+                    const leaderUid = maxScore > 0 ? activePlayers.find(p => p.score === maxScore)?.userId : null
+                    return game.turnOrder.map(uid => {
+                      const p = game.participants.find(x => x.userId === uid)
+                      if (!p) return null
+                      return (
+                        <ParticipantCard
+                          key={uid}
+                          participant={p}
+                          isGm={uid === game.gmUserId}
+                          isCurrentPlayer={uid === activeUserId}
+                          isLeader={uid === leaderUid}
+                          isMine={uid === state.myUserId}
+                          onKick={handleKick}
+                          showKick={isGm}
+                          userSlug={p.userSlug}
+                          showBar
+                          currentTurnScore={uid === activeUserId ? state.currentTurnScore : 0}
+                        />
+                      )
+                    })
+                  })()}
                 </div>
                 {watchers.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-stone-100 dark:border-stone-700">
@@ -900,7 +910,7 @@ export default function PigGame() {
                   <p className="text-sm text-stone-500 dark:text-stone-400 mb-4">
                     {activeUserId === state.myUserId
                       ? "It's your turn!"
-                      : `${game.participants.find(p => p.userId === activeUserId)?.username ?? '...'}'s turn`}
+                      : (() => { const ap = game.participants.find(p => p.userId === activeUserId); return `${ap?.displayName || (ap?.username ?? '...')}'s turn` })()}
                   </p>
                 )}
 
@@ -960,7 +970,7 @@ export default function PigGame() {
                 <div className="text-center mb-6">
                   <div className="text-5xl mb-2">🏆</div>
                   <h2 className="text-xl font-bold text-stone-800 dark:text-stone-100">
-                    {state.winner.winnerUserId === state.myUserId ? 'You won!' : `${state.winner.winnerUsername} wins!`}
+                    {state.winner.winnerUserId === state.myUserId ? 'You won!' : (() => { const wp = game.participants.find(p => p.userId === state.winner.winnerUserId); return `${wp?.displayName || wp?.username || state.winner.winnerUsername} wins!` })()}
                   </h2>
                   {state.winner.reason === 'forfeit' && (
                     <p className="text-sm text-stone-400 mt-1">All other players forfeited.</p>
@@ -977,7 +987,7 @@ export default function PigGame() {
                   .map(p => (
                     <div key={p.userId} className="flex items-center gap-3 py-1">
                       <Avatar username={p.username} avatarUrl={p.avatarUrl} size="sm" />
-                      <span className="flex-1 text-sm text-stone-700 dark:text-stone-300">{p.username}</span>
+                      <span className="flex-1 text-sm text-stone-700 dark:text-stone-300">{p.displayName || p.username}</span>
                       <span className={`font-bold text-lg ${p.userId === state.winner?.winnerUserId ? 'text-amber-500' : 'text-stone-600 dark:text-stone-400'}`}>
                         {p.score}
                       </span>

@@ -170,7 +170,7 @@ public class YahtzeeService(
         sc.YahtzeeBonusCount, sc.UpperTotal, sc.UpperBonus, sc.GrandTotal, sc.IsComplete);
 
     private static YahtzeeParticipantDto ToParticipantDto(YahtzeeParticipant p) => new(
-        p.UserId, p.Username, p.UserSlug, p.AvatarUrl, p.Role, p.IsConnected, ToScoreCardDto(p.ScoreCard));
+        p.UserId, p.Username, p.DisplayName, p.UserSlug, p.AvatarUrl, p.Role, p.IsConnected, ToScoreCardDto(p.ScoreCard));
 
     private static List<YahtzeeParticipantDto> ToParticipantDtos(IEnumerable<YahtzeeParticipant> participants) =>
         participants.Select(ToParticipantDto).ToList();
@@ -225,7 +225,7 @@ public class YahtzeeService(
     // ── Create ────────────────────────────────────────────────────────────────
 
     public async Task<(YahtzeeGame game, string? error)> CreateGameAsync(
-        string userId, string username, string? userSlug, string? avatarUrl, string? customName)
+        string userId, string username, string? displayName, string? userSlug, string? avatarUrl, string? customName)
     {
         var slug = await GenerateUniqueSlugAsync();
         var name = string.IsNullOrWhiteSpace(customName) ? $"{username}'s game" : customName.Trim();
@@ -242,6 +242,7 @@ public class YahtzeeService(
                 {
                     UserId = userId,
                     Username = username,
+                    DisplayName = displayName,
                     UserSlug = userSlug,
                     AvatarUrl = avatarUrl,
                     Role = "player",
@@ -308,7 +309,7 @@ public class YahtzeeService(
     // ── Connection ────────────────────────────────────────────────────────────
 
     public async Task<(YahtzeeGameStateDto? state, string? error)> HandleConnectionAsync(
-        string? slug, string userId, string username, string? userSlug, string? avatarUrl,
+        string? slug, string userId, string username, string? displayName, string? userSlug, string? avatarUrl,
         string connectionId, bool isListMode)
     {
         if (isListMode)
@@ -370,6 +371,7 @@ public class YahtzeeService(
                 {
                     UserId = userId,
                     Username = username,
+                    DisplayName = displayName,
                     UserSlug = userSlug,
                     AvatarUrl = avatarUrl,
                     Role = role,
@@ -737,6 +739,7 @@ public class YahtzeeService(
                 rank = rank + 1,
                 userId = p.UserId,
                 username = p.Username,
+                displayName = p.DisplayName,
                 grandTotal = p.ScoreCard.GrandTotal,
                 scoreCard = ToScoreCardDto(p.ScoreCard)
             })

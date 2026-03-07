@@ -15,6 +15,9 @@ public class YahtzeeHub(IYahtzeeService yahtzeeService, ILogger<YahtzeeHub> logg
     private string Username =>
         Context.User?.FindFirstValue("discord_username") ?? "Unknown";
 
+    private string? AlternativeName =>
+        Context.User?.FindFirstValue("alternative_name");
+
     private string? UserSlug =>
         Context.User?.FindFirstValue("slug");
 
@@ -43,7 +46,7 @@ public class YahtzeeHub(IYahtzeeService yahtzeeService, ILogger<YahtzeeHub> logg
                 await Groups.AddToGroupAsync(Context.ConnectionId, $"yahtzee-{slug}");
 
             var (state, error) = await yahtzeeService.HandleConnectionAsync(
-                slug, UserId, Username, UserSlug, null, Context.ConnectionId, isListMode);
+                slug, UserId, Username, AlternativeName, UserSlug, null, Context.ConnectionId, isListMode);
 
             if (error != null)
             {

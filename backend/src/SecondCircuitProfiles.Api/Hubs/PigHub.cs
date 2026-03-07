@@ -15,6 +15,9 @@ public class PigHub(IPigService pigService, ILogger<PigHub> logger) : Hub
     private string Username =>
         Context.User?.FindFirstValue("discord_username") ?? "Unknown";
 
+    private string? AlternativeName =>
+        Context.User?.FindFirstValue("alternative_name");
+
     private string? UserSlug =>
         Context.User?.FindFirstValue("slug");
 
@@ -47,7 +50,7 @@ public class PigHub(IPigService pigService, ILogger<PigHub> logger) : Hub
             }
 
             var (state, error) = await pigService.HandleConnectionAsync(
-                slug!, UserId, Username, UserSlug, null, Context.ConnectionId, isListMode);
+                slug!, UserId, Username, AlternativeName, UserSlug, null, Context.ConnectionId, isListMode);
 
             if (error != null)
             {

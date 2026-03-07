@@ -170,7 +170,7 @@ function reducer(state, action) {
         ...state,
         game: { ...state.game, participants: updatedParticipants },
         scoredThisTurn: true,
-        lastAction: { username: action.username, category: action.category, points: action.points },
+        lastAction: { username: state.game.participants.find(p => p.userId === action.userId)?.displayName || action.username, category: action.category, points: action.points },
         recentlyScored: { userId: action.userId, category: action.category },
         potentialScores: {},
         idleCountdown: null,
@@ -443,13 +443,16 @@ function YahtzeeScoreBar({ score, potentialBest = 0, isActive = false }) {
 
 // ── Player bar (top overview) ─────────────────────────────────────────────────
 
-function PlayerBar({ participant, isActive, isMine, potentialBest = 0 }) {
+function PlayerBar({ participant, isActive, isMine, isLeader, potentialBest = 0 }) {
   const score = participant.scoreCard?.grandTotal ?? 0
+  const displayName = participant.displayName || participant.username
   return (
     <div className={`flex items-center gap-2.5 p-2 rounded-xl transition-colors ${
-      isActive
-        ? 'bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-300 dark:ring-amber-700'
-        : 'hover:bg-stone-50 dark:hover:bg-stone-700/30'
+      isLeader
+        ? 'bg-amber-50 dark:bg-amber-900/20 ring-2 ring-amber-400 dark:ring-amber-500'
+        : isActive
+          ? 'bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-300 dark:ring-amber-700'
+          : 'hover:bg-stone-50 dark:hover:bg-stone-700/30'
     }`}>
       <div className="relative flex-shrink-0">
         <Avatar username={participant.username} avatarUrl={participant.avatarUrl} size="sm" />
@@ -460,7 +463,7 @@ function PlayerBar({ participant, isActive, isMine, potentialBest = 0 }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1 flex-wrap">
           <span className="text-xs font-medium text-stone-800 dark:text-stone-100 truncate">
-            {isMine ? 'You' : participant.username}
+            {isMine ? 'You' : displayName}
           </span>
           {isActive && (
             <span className="text-xs bg-amber-400 dark:bg-amber-600 text-white px-1 py-0.5 rounded-full leading-none">▶</span>
@@ -629,7 +632,7 @@ function CombinedScoreTable({ players, activeUserId, myUserId, potentialScores, 
                 >
                   <div className="flex flex-col items-center gap-0.5">
                     <Avatar username={p.username} avatarUrl={p.avatarUrl} size="sm" />
-                    <span className="truncate max-w-[64px]">{isMineCol ? 'You' : p.username}</span>
+                    <span className="truncate max-w-[64px]">{isMineCol ? 'You' : (p.displayName || p.username)}</span>
                     {!p.isConnected && <span className="text-stone-400 dark:text-stone-500 text-xs">●</span>}
                   </div>
                 </th>
@@ -983,7 +986,7 @@ export default function YahtzeeGame() {
                 <div key={p.userId} className="flex items-center gap-3 p-2 rounded-lg bg-stone-50 dark:bg-stone-700/30">
                   <Avatar username={p.username} avatarUrl={p.avatarUrl} />
                   <div className="flex-1">
-                    <span className="text-sm font-medium text-stone-800 dark:text-stone-100">{p.username}</span>
+                    <span className="text-sm font-medium text-stone-800 dark:text-stone-100">{p.displayName || p.username}</span>
                     {p.userId === game.gmUserId && (
                       <span className="ml-2 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">GM</span>
                     )}
@@ -1045,15 +1048,20 @@ export default function YahtzeeGame() {
                 )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {players.map((p, idx) => (
-                  <PlayerBar
-                    key={p.userId}
-                    participant={p}
-                    isActive={idx === (game.currentPlayerIndex % players.length)}
-                    isMine={p.userId === state.myUserId}
-                    potentialBest={p.userId === activeUserId ? activePotentialBest : 0}
-                  />
-                ))}
+                {(() => {
+                  const maxScore = Math.max(0, ...players.map(p => p.scoreCard?.grandTotal ?? 0))
+                  const leaderUid = maxScore > 0 ? players.find(p => (p.scoreCard?.grandTotal ?? 0) === maxScore)?.userId : null
+                  return players.map((p, idx) => (
+                    <PlayerBar
+                      key={p.userId}
+                      participant={p}
+                      isActive={idx === (game.currentPlayerIndex % players.length)}
+                      isLeader={p.userId === leaderUid}
+                      isMine={p.userId === state.myUserId}
+                      potentialBest={p.userId === activeUserId ? activePotentialBest : 0}
+                    />
+                  ))
+                })()}
               </div>
               {state.lastAction && (
                 <p className="mt-2 text-xs text-stone-400 dark:text-stone-500 italic">
@@ -1066,7 +1074,7 @@ export default function YahtzeeGame() {
             <div className="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-5 shadow-sm">
               {activeUserId && (
                 <p className="text-sm text-stone-500 dark:text-stone-400 mb-4 text-center">
-                  {isMyTurn ? "It's your turn!" : `${activePlayer?.username ?? '...'}'s turn`}
+                  {isMyTurn ? "It's your turn!" : `${activePlayer?.displayName || (activePlayer?.username ?? '...')}'s turn`}
                   {state.rollCount > 0 && (
                     <span className="ml-2 text-xs text-stone-400">
                       Roll {state.rollCount}/3
@@ -1173,7 +1181,7 @@ export default function YahtzeeGame() {
                 <h2 className="text-xl font-bold text-stone-800 dark:text-stone-100">
                   {state.rankings[0].userId === state.myUserId
                     ? 'You won!'
-                    : `${state.rankings[0].username} wins!`}
+                    : `${state.rankings[0].displayName || state.rankings[0].username} wins!`}
                 </h2>
               )}
             </div>
@@ -1185,7 +1193,7 @@ export default function YahtzeeGame() {
                   <div key={r.userId} className="flex items-center gap-3 py-2 border-b border-stone-100 dark:border-stone-700">
                     <span className="text-lg font-bold text-stone-400 w-6 text-center">{r.rank}</span>
                     <span className="flex-1 text-sm text-stone-700 dark:text-stone-300 font-medium">
-                      {r.userId === state.myUserId ? 'You' : r.username}
+                      {r.userId === state.myUserId ? 'You' : (r.displayName || r.username)}
                     </span>
                     <span className={`font-bold text-lg ${r.rank === 1 ? 'text-amber-500' : 'text-stone-500 dark:text-stone-400'}`}>
                       {r.grandTotal}

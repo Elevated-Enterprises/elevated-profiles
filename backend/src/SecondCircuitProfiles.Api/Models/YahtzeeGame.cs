@@ -52,6 +52,7 @@ public class YahtzeeParticipant
     [BsonElement("userId")]      public string UserId { get; set; } = null!;
     [BsonElement("username")]    public string Username { get; set; } = null!;
     [BsonElement("userSlug")]    public string? UserSlug { get; set; }
+    [BsonElement("displayName")] public string? DisplayName { get; set; }
     [BsonElement("avatarUrl")]   public string? AvatarUrl { get; set; }
     [BsonElement("role")]        public string Role { get; set; } = "player"; // "player" | "watcher"
     [BsonElement("isConnected")] public bool IsConnected { get; set; } = true;

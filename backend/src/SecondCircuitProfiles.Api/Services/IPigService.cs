@@ -5,6 +5,7 @@ namespace SecondCircuitProfiles.Api.Services;
 public record PigParticipantDto(
     string UserId,
     string Username,
+    string? DisplayName,
     string? UserSlug,
     string? AvatarUrl,
     string Role,
@@ -37,13 +38,13 @@ public record PigGameStateSnapshot(
 public interface IPigService
 {
     Task<(PigGame game, string? error)> CreateGameAsync(
-        string userId, string username, string? userSlug, string? avatarUrl, string? customName);
+        string userId, string username, string? displayName, string? userSlug, string? avatarUrl, string? customName);
 
     Task<List<PigGameSummary>> GetOpenGamesAsync(int page, int pageSize);
     Task<int> GetOpenGamesCountAsync();
 
     Task<(PigGameStateSnapshot? state, string? error)> HandleConnectionAsync(
-        string slug, string userId, string username, string? userSlug, string? avatarUrl, string connectionId, bool isListMode);
+        string slug, string userId, string username, string? displayName, string? userSlug, string? avatarUrl, string connectionId, bool isListMode);
 
     Task HandleDisconnectionAsync(string? slug, string userId, string connectionId, bool isListMode);
 

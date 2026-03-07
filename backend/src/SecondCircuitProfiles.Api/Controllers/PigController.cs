@@ -28,6 +28,9 @@ public class PigController(IPigService pigService, IUserService userService) : C
     private string Username =>
         User.FindFirstValue("discord_username") ?? "Unknown";
 
+    private string? AlternativeName =>
+        User.FindFirstValue("alternative_name");
+
     private string? UserSlug =>
         User.FindFirstValue("slug");
 
@@ -43,7 +46,7 @@ public class PigController(IPigService pigService, IUserService userService) : C
         }
 
         var (game, error) = await pigService.CreateGameAsync(
-            UserId, Username, UserSlug, avatarUrl, request.CustomName);
+            UserId, Username, AlternativeName, UserSlug, avatarUrl, request.CustomName);
 
         if (error != null)
             return BadRequest(new { error });

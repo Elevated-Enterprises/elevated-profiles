@@ -15,6 +15,7 @@ public record YahtzeeScoreCardDto(
 public record YahtzeeParticipantDto(
     string UserId,
     string Username,
+    string? DisplayName,
     string? UserSlug,
     string? AvatarUrl,
     string Role,
@@ -47,10 +48,10 @@ public record YahtzeeGameStateDto(
 public interface IYahtzeeService
 {
     Task<(YahtzeeGame game, string? error)> CreateGameAsync(
-        string userId, string username, string? userSlug, string? avatarUrl, string? customName);
+        string userId, string username, string? displayName, string? userSlug, string? avatarUrl, string? customName);
 
     Task<(YahtzeeGameStateDto? state, string? error)> HandleConnectionAsync(
-        string? slug, string userId, string username, string? userSlug, string? avatarUrl,
+        string? slug, string userId, string username, string? displayName, string? userSlug, string? avatarUrl,
         string connectionId, bool isListMode);
 
     Task HandleDisconnectionAsync(string? slug, string userId, string connectionId, bool isListMode);

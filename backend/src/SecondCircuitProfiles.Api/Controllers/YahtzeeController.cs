@@ -28,6 +28,9 @@ public class YahtzeeController(IYahtzeeService yahtzeeService, IUserService user
     private string Username =>
         User.FindFirstValue("discord_username") ?? "Unknown";
 
+    private string? AlternativeName =>
+        User.FindFirstValue("alternative_name");
+
     private string? UserSlug =>
         User.FindFirstValue("slug");
 
@@ -42,7 +45,7 @@ public class YahtzeeController(IYahtzeeService yahtzeeService, IUserService user
         }
 
         var (game, error) = await yahtzeeService.CreateGameAsync(
-            UserId, Username, UserSlug, avatarUrl, request.CustomName);
+            UserId, Username, AlternativeName, UserSlug, avatarUrl, request.CustomName);
 
         if (error != null)
             return BadRequest(new { error });

@@ -22,6 +22,9 @@ public class PigParticipant
     [BsonElement("userSlug")]
     public string? UserSlug { get; set; }
 
+    [BsonElement("displayName")]
+    public string? DisplayName { get; set; }
+
     [BsonElement("avatarUrl")]
     public string? AvatarUrl { get; set; }
 
