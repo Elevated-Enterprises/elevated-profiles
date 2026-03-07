@@ -131,7 +131,7 @@ export default function ProfileDetail() {
   const [openThoughtId, setOpenThoughtId] = useState(null)
 
   // Bio collapsed/expanded
-  const [bioExpanded, setBioExpanded] = useState(false)
+  const [bioExpanded, setBioExpanded] = useState(true)
 
   // Profile reactions + insights
   const [profileReactions, setProfileReactions] = useState([])
@@ -417,12 +417,17 @@ export default function ProfileDetail() {
               )}
             </div>
             {canEdit && (
-              <button
-                onClick={() => setShowEditProfile(true)}
-                className="flex-shrink-0 mb-2 flex items-center gap-1.5 text-sm text-stone-600 dark:text-stone-300 hover:text-amber-600 dark:hover:text-amber-500 bg-white dark:bg-stone-700 border border-stone-200 dark:border-stone-600 hover:border-amber-300 dark:hover:border-amber-600 rounded-lg px-4 py-2 shadow-sm transition-colors font-medium"
-              >
-                ✏ Edit Profile
-              </button>
+              <div className="flex-shrink-0 mb-2 flex flex-col items-end gap-2">
+                <button
+                  onClick={() => setShowEditProfile(true)}
+                  className="flex items-center gap-1.5 text-sm text-stone-600 dark:text-stone-300 hover:text-amber-600 dark:hover:text-amber-500 bg-white dark:bg-stone-700 border border-stone-200 dark:border-stone-600 hover:border-amber-300 dark:hover:border-amber-600 rounded-lg px-4 py-2 shadow-sm transition-colors font-medium"
+                >
+                  ✏ Edit Profile
+                </button>
+                {authUser?.isAdmin && !user.ambassadorCommunity && (
+                  <SectionEditButton onClick={() => setShowAmbassador(true)} label="Assign Ambassador" />
+                )}
+              </div>
             )}
             {!isOwn && user && authUser && (
               <div className="flex gap-2 mb-2 flex-wrap">
@@ -450,36 +455,73 @@ export default function ProfileDetail() {
             )}
           </div>
 
-          {/* Profile reactions */}
+          {/* Profile reactions + Community Roles */}
           <div className="mb-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <ReactionSummary
-                reactions={profileReactions}
-                targetId={user.userId}
-                targetType="profile"
-                onUpdate={loadProfileReactions}
-              />
-              {authUser && !isOwn && (
-                <div className="relative">
-                  <button
-                    onClick={() => setShowReactionPicker(!showReactionPicker)}
-                    className="text-sm text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 border border-stone-200 dark:border-stone-600 rounded-full px-2 py-0.5"
-                  >
-                    + React
-                  </button>
-                  {showReactionPicker && (
-                    <div className="absolute bottom-full left-0 mb-2 z-20">
-                      <ReactionPicker
-                        emojis={profileEmojis}
-                        userReactions={profileReactions.filter(r => r.userHasReacted).map(r => r.emojiKey)}
-                        onSelect={handleProfileReactionToggle}
-                        onClose={() => setShowReactionPicker(false)}
-                      />
-                    </div>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <ReactionSummary
+                  reactions={profileReactions}
+                  targetId={user.userId}
+                  targetType="profile"
+                  onUpdate={loadProfileReactions}
+                />
+                {authUser && !isOwn && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowReactionPicker(!showReactionPicker)}
+                      className="text-sm text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 border border-stone-200 dark:border-stone-600 rounded-full px-2 py-0.5"
+                    >
+                      + React
+                    </button>
+                    {showReactionPicker && (
+                      <div className="absolute bottom-full left-0 mb-2 z-20">
+                        <ReactionPicker
+                          emojis={profileEmojis}
+                          userReactions={profileReactions.filter(r => r.userHasReacted).map(r => r.emojiKey)}
+                          onSelect={handleProfileReactionToggle}
+                          onClose={() => setShowReactionPicker(false)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              {(authUser?.isAdmin || user.communityRoles?.length > 0) && (
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  {user.communityRoles?.map((role) => (
+                    <span
+                      key={role.id}
+                      className="bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 text-xs px-3 py-1 rounded-full border border-violet-200 dark:border-violet-800"
+                    >
+                      {role.name}
+                    </span>
+                  ))}
+                  {authUser?.isAdmin && (
+                    <SectionEditButton onClick={() => setShowCommunityRoles(true)} label="Assign" />
                   )}
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Meta */}
+          <div className="flex flex-wrap gap-3 text-sm text-stone-500 dark:text-stone-400 mb-4">
+            {birthYear && <span>Born {birthYear}</span>}
+            {location && <span>📍 {location}</span>}
+            {user.timezoneOffsetMinutes != null && (
+              <span>🕐 {formatTimezone(user.timezoneOffsetMinutes)}</span>
+            )}
+            {user.alignment != null && (
+              <span className="text-purple-600 dark:text-purple-400 font-medium">⚔ {ALIGNMENT_LABELS[user.alignment]}</span>
+            )}
+            {user.joinedAt && (
+              <span className="text-stone-400 dark:text-stone-500">Joined {formatJoinDate(user.joinedAt)}</span>
+            )}
+            {user.lastSeenAt && (
+              <span className="text-stone-400 dark:text-stone-500" title={new Date(user.lastSeenAt).toLocaleString()}>
+                Last online {formatRelativeTime(user.lastSeenAt)}
+              </span>
+            )}
           </div>
 
           {/* Status / Thought Bubble */}
@@ -557,29 +599,9 @@ export default function ProfileDetail() {
             </div>
           )}
 
-          {/* Meta */}
-          <div className="flex flex-wrap gap-3 text-sm text-stone-500 dark:text-stone-400 mb-4">
-            {birthYear && <span>Born {birthYear}</span>}
-            {location && <span>📍 {location}</span>}
-            {user.timezoneOffsetMinutes != null && (
-              <span>🕐 {formatTimezone(user.timezoneOffsetMinutes)}</span>
-            )}
-            {user.alignment != null && (
-              <span className="text-purple-600 dark:text-purple-400 font-medium">⚔ {ALIGNMENT_LABELS[user.alignment]}</span>
-            )}
-            {user.joinedAt && (
-              <span className="text-stone-400 dark:text-stone-500">Joined {formatJoinDate(user.joinedAt)}</span>
-            )}
-            {user.lastSeenAt && (
-              <span className="text-stone-400 dark:text-stone-500" title={new Date(user.lastSeenAt).toLocaleString()}>
-                Last online {formatRelativeTime(user.lastSeenAt)}
-              </span>
-            )}
-          </div>
-
           {/* Companions — first class, directly after meta */}
           {(canEdit || companions.length > 0) && (
-            <div className="mb-4 pt-3 border-t border-stone-100 dark:border-stone-700">
+            <div className="mb-4">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">
                   Companions{companions.length > 0 ? ` (${companions.length})` : ''}
@@ -747,14 +769,9 @@ export default function ProfileDetail() {
               )}
             </div>
           )}
-          {!user.ambassadorCommunity && authUser?.isAdmin && (
-            <div className="mb-4 flex">
-              <SectionEditButton onClick={() => setShowAmbassador(true)} label="Assign Ambassador" />
-            </div>
-          )}
 
           {/* Skills / LLM Experience / Languages — three columns */}
-          <div className="mb-4 grid grid-cols-3 gap-4">
+          <div className="mb-4 pt-4 border-t border-stone-100 dark:border-stone-700 grid grid-cols-3 gap-4">
             {/* Skills */}
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -829,6 +846,14 @@ export default function ProfileDetail() {
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">Bio</span>
                 {canEdit && <SectionEditButton onClick={() => setShowEditProfile(true)} />}
+                {thoughts.length > 0 && (
+                  <button
+                    onClick={() => document.getElementById('thoughts-section')?.scrollIntoView({ behavior: 'smooth' })}
+                    className="ml-auto text-xs text-stone-400 dark:text-stone-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors flex items-center gap-1"
+                  >
+                    Thoughts ({thoughts.length}) ↓
+                  </button>
+                )}
               </div>
               {user.bio ? (
                 <>
@@ -850,7 +875,7 @@ export default function ProfileDetail() {
 
           {/* Links */}
           {(canEdit || user.links?.length > 0) && (
-            <div className="mt-4 pt-4 border-t border-stone-100 dark:border-stone-700">
+            <div className="mt-3">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">Links</span>
                 {canEdit && <SectionEditButton onClick={() => setShowEditLinks(true)} />}
@@ -885,7 +910,7 @@ export default function ProfileDetail() {
             const displayed = thoughtsExpanded ? filtered : filtered.slice(0, 10)
 
             return (
-              <div className="mt-6 pt-4 border-t border-stone-100 dark:border-stone-700">
+              <div id="thoughts-section" className="mt-6 pt-4 border-t border-stone-100 dark:border-stone-700">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-sm font-semibold text-stone-700 dark:text-stone-200 uppercase tracking-wide">
                     Thoughts {thoughts.length > 0 && <span className="text-stone-400">({thoughts.length})</span>}
@@ -949,29 +974,6 @@ export default function ProfileDetail() {
             )
           })()}
 
-          {/* Community Roles (admin-managed) */}
-          {(authUser?.isAdmin || user.communityRoles?.length > 0) && (
-            <div className="mt-4 pt-4 border-t border-stone-100 dark:border-stone-700">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">Community Roles</span>
-                {authUser?.isAdmin && <SectionEditButton onClick={() => setShowCommunityRoles(true)} label="Assign" />}
-              </div>
-              {user.communityRoles?.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {user.communityRoles.map((role) => (
-                    <span
-                      key={role.id}
-                      className="bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 text-xs px-3 py-1 rounded-full border border-violet-200 dark:border-violet-800"
-                    >
-                      {role.name}
-                    </span>
-                  ))}
-                </div>
-              ) : authUser?.isAdmin ? (
-                <p className="text-xs text-stone-400 dark:text-stone-500">No community roles assigned.</p>
-              ) : null}
-            </div>
-          )}
         </div>
       </div>
 
