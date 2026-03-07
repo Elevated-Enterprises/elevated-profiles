@@ -434,6 +434,38 @@ export default function ProfileDetail() {
             )}
           </div>
 
+          {/* Profile reactions */}
+          <div className="mb-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <ReactionSummary
+                reactions={profileReactions}
+                targetId={user.userId}
+                targetType="profile"
+                onUpdate={loadProfileReactions}
+              />
+              {authUser && !isOwn && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowReactionPicker(!showReactionPicker)}
+                    className="text-sm text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 border border-stone-200 dark:border-stone-600 rounded-full px-2 py-0.5"
+                  >
+                    + React
+                  </button>
+                  {showReactionPicker && (
+                    <div className="absolute bottom-full left-0 mb-2 z-20">
+                      <ReactionPicker
+                        emojis={profileEmojis}
+                        userReactions={profileReactions.filter(r => r.userHasReacted).map(r => r.emojiKey)}
+                        onSelect={handleProfileReactionToggle}
+                        onClose={() => setShowReactionPicker(false)}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Blocked banner (admin view) */}
           {user.isBlocked && (
             <div className="mb-4 px-4 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-400 flex items-center justify-between gap-3">
@@ -509,7 +541,7 @@ export default function ProfileDetail() {
                 )}
               </div>
               <div className="-mx-6 overflow-x-auto">
-                <div className="flex gap-3 pt-8 pb-2 px-6 items-start">
+                <div className="flex gap-3 pt-4 pb-2 px-6 items-start">
                   {companions.map((companion, idx) => {
                     const cReactions = (companionReactions[companion.id] || []).filter(r => r.count > 0)
                     return (
@@ -580,38 +612,6 @@ export default function ProfileDetail() {
               </div>
             </div>
           )}
-
-          {/* Profile reactions */}
-          <div className="mb-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <ReactionSummary
-                reactions={profileReactions}
-                targetId={user.userId}
-                targetType="profile"
-                onUpdate={loadProfileReactions}
-              />
-              {authUser && !isOwn && (
-                <div className="relative">
-                  <button
-                    onClick={() => setShowReactionPicker(!showReactionPicker)}
-                    className="text-sm text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 border border-stone-200 dark:border-stone-600 rounded-full px-2 py-0.5"
-                  >
-                    + React
-                  </button>
-                  {showReactionPicker && (
-                    <div className="absolute bottom-full left-0 mb-2 z-20">
-                      <ReactionPicker
-                        emojis={profileEmojis}
-                        userReactions={profileReactions.filter(r => r.userHasReacted).map(r => r.emojiKey)}
-                        onSelect={handleProfileReactionToggle}
-                        onClose={() => setShowReactionPicker(false)}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
 
           {/* Profile visit stats + insights — only visible to the owner */}
           {isOwn && (

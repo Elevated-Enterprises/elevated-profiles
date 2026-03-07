@@ -26,13 +26,20 @@ function applySettings(settings) {
   }
 }
 
+function readLocalSettings() {
+  return {
+    darkMode: localStorage.getItem('sc_dark_mode') ?? 'false',
+    dyslexicFont: localStorage.getItem('sc_dyslexic_font') ?? 'false',
+  }
+}
+
 export function UserSettingsProvider({ children }) {
   const { user } = useAuth()
-  const [settings, setSettings] = useState({})
+  const [settings, setSettings] = useState(readLocalSettings)
 
   useEffect(() => {
     if (!user) {
-      setSettings({})
+      setSettings(readLocalSettings())
       return
     }
     getUserSettings(user.slug)
@@ -47,10 +54,10 @@ export function UserSettingsProvider({ children }) {
   }, [user?.slug])
 
   const updateSetting = useCallback(async (key, value) => {
-    if (!user) return
     const updated = { ...settings, [key]: value }
     setSettings(updated)
     applySettings(updated)
+    if (!user) return
     try {
       await patchUserSettings(user.slug, { [key]: value })
     } catch {

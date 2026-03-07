@@ -940,13 +940,11 @@ public class YahtzeeService(
             currentPlayerCount++;
         }
 
-        // Reset for a new round
+        // Reset score cards and return to lobby so the GM can start the next round
         foreach (var p in game.Participants.Where(p => p.Role == "player"))
             p.ScoreCard = new YahtzeeScoreCard();
 
-        game.Status = YahtzeeGameStatus.InProgress;
-        if (game.RandomiseTurnOrder)
-            ShufflePlayers(game);
+        game.Status = YahtzeeGameStatus.Lobby;
         game.CurrentPlayerIndex = 0;
         game.CurrentDice = [0, 0, 0, 0, 0];
         game.HeldDice = [false, false, false, false, false];
@@ -956,12 +954,10 @@ public class YahtzeeService(
         game.LastActivity = DateTime.UtcNow;
 
         await PersistAsync(game);
+        BroadcastOpenGames();
 
         await hub.Clients.Group(GameGroup(slug)).SendAsync("PlayAgainResult",
-            new { participants = ToParticipantDtos(game.Participants), currentPlayerIndex = 0 });
-
-        if (game.CurrentActiveUserId is { } firstPlayer)
-            StartIdleTimer(game, slug, firstPlayer);
+            new { participants = ToParticipantDtos(game.Participants) });
     }
 
     // ── Chat ──────────────────────────────────────────────────────────────────

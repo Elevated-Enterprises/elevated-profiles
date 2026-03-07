@@ -246,8 +246,8 @@ function reducer(state, action) {
       if (!state.game) return state
       return {
         ...state,
-        phase: 'in-progress',
-        game: { ...state.game, status: 1, participants: action.participants, currentPlayerIndex: action.currentPlayerIndex },
+        phase: 'lobby',
+        game: { ...state.game, status: 0, participants: action.participants, currentPlayerIndex: 0 },
         dice: [0, 0, 0, 0, 0],
         heldDice: [false, false, false, false, false],
         rollCount: 0,
@@ -841,8 +841,8 @@ export default function YahtzeeGame() {
       dispatch({ type: 'PLAY_AGAIN_VOTE_UPDATE', yesCount, noCount })
     })
 
-    connection.on('PlayAgainResult', ({ participants, currentPlayerIndex }) => {
-      dispatch({ type: 'PLAY_AGAIN_RESULT', participants, currentPlayerIndex })
+    connection.on('PlayAgainResult', ({ participants }) => {
+      dispatch({ type: 'PLAY_AGAIN_RESULT', participants })
     })
 
     connection.on('RandomiseTurnOrderChanged', (value) => {

@@ -151,6 +151,8 @@ if (avatarUrl is null && userSlug is not null)
 
 **BroadcastOpenGames()** — call whenever the visible list might change (create, start, join, finish, cancel, close).
 
+**Play Again flow** — after `FinalizePlayAgainAsync` resolves with a yes-majority: reset score cards, set `Status = Lobby`, call `BroadcastOpenGames()`, send `PlayAgainResult` with participants only (no `currentPlayerIndex`). The GM then starts the next round from the lobby via `StartGame`. The frontend `PLAY_AGAIN_RESULT` reducer case sets `phase: 'lobby'` and `game.status: 0`. This is the canonical pattern — both Pig and Yahtzee use it.
+
 **Idle timer** — countdown sent to the entire game group (not just the active player). On expiry, auto-advance the turn:
 - **Yahtzee** — auto-roll if not yet rolled, then auto-select the worst available category.
 - **Pig** — skip the active player's turn (turn score lost). Track `ConsecutiveSkips`; two skips in a row → kick the player.
@@ -285,4 +287,3 @@ Add nav link next to existing game links.
 - Idle timeout duration (default: 60 s)
 - Bots needed? (Pig has them; Yahtzee does not)
 - Play Again voting needed? (default: yes)
-- On Play Again yes: return to Lobby like Pig (GM must restart), or restart directly like Yahtzee?

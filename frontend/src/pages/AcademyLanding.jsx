@@ -66,60 +66,58 @@ export default function AcademyLanding() {
         </Link>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {recentArticles.length > 0 && (
-          <div>
-            <h2 className="text-lg font-semibold text-stone-800 dark:text-stone-100 mb-4">Recently Added</h2>
-            <ul className="space-y-3">
-              {recentArticles.map((article) => (
-                <li key={article.path}>
-                  <Link
-                    to={`/academy/${article.path}`}
-                    className="group flex items-start gap-2"
-                  >
-                    <span className="text-sm text-stone-700 dark:text-stone-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors leading-snug">
-                      {article.metadata.title}
-                    </span>
-                    {isNew(article.metadata.dateCreated) && (
-                      <span className="flex-shrink-0 text-xs bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-400 px-1.5 py-0.5 rounded font-medium">
-                        New
-                      </span>
-                    )}
-                  </Link>
-                  {article.metadata.dateCreated && (
-                    <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">
-                      {formatDate(article.metadata.dateCreated)}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+      {categories.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-stone-800 dark:text-stone-100 mb-4 text-center">Categories</h2>
+          <ul className="max-w-lg mx-auto space-y-2">
+            {categories.map((cat) => (
+              <li key={cat.slug}>
+                <Link
+                  to={`/academy/${cat.slug}`}
+                  className="flex items-center justify-between group rounded-xl border border-stone-100 dark:border-stone-700 bg-white dark:bg-stone-800 px-4 py-3 hover:border-amber-300 dark:hover:border-amber-600 transition-colors"
+                >
+                  <span className="text-sm font-medium text-stone-700 dark:text-stone-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                    {cat.displayName}
+                  </span>
+                  <span className="text-xs text-stone-400 dark:text-stone-500">
+                    {cat.articleCount} {cat.articleCount === 1 ? 'article' : 'articles'}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-        {categories.length > 0 && (
-          <div>
-            <h2 className="text-lg font-semibold text-stone-800 dark:text-stone-100 mb-4">Categories</h2>
-            <ul className="space-y-2">
-              {categories.map((cat) => (
-                <li key={cat.slug}>
-                  <Link
-                    to={`/academy/${cat.slug}`}
-                    className="flex items-center justify-between group rounded-xl border border-stone-100 dark:border-stone-700 bg-white dark:bg-stone-800 px-4 py-3 hover:border-amber-300 dark:hover:border-amber-600 transition-colors"
-                  >
-                    <span className="text-sm font-medium text-stone-700 dark:text-stone-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                      {cat.displayName}
+      {recentArticles.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold text-stone-800 dark:text-stone-100 mb-4">Recently Added</h2>
+          <ul className="space-y-3">
+            {recentArticles.map((article) => (
+              <li key={article.path}>
+                <Link
+                  to={`/academy/${article.path}`}
+                  className="group flex items-start gap-2"
+                >
+                  <span className="text-sm text-stone-700 dark:text-stone-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors leading-snug">
+                    {article.metadata.title}
+                  </span>
+                  {isNew(article.metadata.dateCreated) && (
+                    <span className="flex-shrink-0 text-xs bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-400 px-1.5 py-0.5 rounded font-medium">
+                      New
                     </span>
-                    <span className="text-xs text-stone-400 dark:text-stone-500">
-                      {cat.articleCount} {cat.articleCount === 1 ? 'article' : 'articles'}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
+                  )}
+                </Link>
+                {article.metadata.dateCreated && (
+                  <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">
+                    {formatDate(article.metadata.dateCreated)}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {categories.length === 0 && recentArticles.length === 0 && (
         <p className="text-stone-400 dark:text-stone-500 text-sm">
