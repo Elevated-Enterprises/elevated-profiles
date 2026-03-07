@@ -504,6 +504,92 @@ export default function ProfileDetail() {
             </div>
           </div>
 
+          {/* Companions — directly after reactions */}
+          {(canEdit || companions.length > 0) && (
+            <div className="mb-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">
+                  Companions{companions.length > 0 ? ` (${companions.length})` : ''}
+                </span>
+                {canReorder && (
+                  <span className="text-xs text-stone-300 dark:text-stone-600 select-none">· drag to reorder</span>
+                )}
+              </div>
+              <div className="-mx-6 overflow-x-auto">
+                <div className="flex gap-3 pt-4 pb-2 px-6 items-start">
+                  {companions.map((companion, idx) => {
+                    const cReactions = (companionReactions[companion.id] || []).filter(r => r.count > 0)
+                    return (
+                      <div
+                        key={companion.id}
+                        draggable={canReorder}
+                        onDragStart={canReorder ? (e) => handleDragStart(e, idx) : undefined}
+                        onDragOver={canReorder ? (e) => handleDragOver(e, idx) : undefined}
+                        onDrop={canReorder ? (e) => handleDrop(e, idx) : undefined}
+                        onDragEnd={canReorder ? handleDragEnd : undefined}
+                        onClick={() => setSelectedCompanion(companion)}
+                        className={[
+                          'relative flex flex-col items-center w-20 flex-shrink-0 group/comp hover:z-10 transition-all duration-150',
+                          canReorder ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
+                          dragFromIdx === idx ? 'opacity-40' : '',
+                          dragOverIdx === idx && dragFromIdx !== idx
+                            ? 'outline outline-2 outline-amber-300 dark:outline-amber-600 rounded-xl'
+                            : '',
+                        ].filter(Boolean).join(' ')}
+                      >
+                        <div className={[
+                          'w-20 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30 group-hover/comp:scale-[1.5] transition-transform duration-200 origin-center flex-shrink-0',
+                          companion.id === primaryCompanionId ? 'ring-2 ring-amber-400 dark:ring-amber-400' : '',
+                        ].filter(Boolean).join(' ')}>
+                          {companion.profileImageUrl ? (
+                            <img
+                              src={getImageUrl(companion.profileImageUrl)}
+                              alt={companion.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-xl select-none">
+                              ✨
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-xs font-medium text-stone-700 dark:text-stone-200 mt-1 text-center w-full truncate">
+                          {companion.name}
+                        </p>
+                        {companion.alignment != null && (
+                          <p className="text-[10px] text-purple-500 dark:text-purple-400 text-center w-full truncate">
+                            {ALIGNMENT_LABELS[companion.alignment]}
+                          </p>
+                        )}
+                        {cReactions.length > 0 && (
+                          <div className="flex flex-wrap justify-center gap-0.5 mt-0.5">
+                            {cReactions.slice(0, 3).map(r => (
+                              <span key={r.emojiKey} className="text-[10px] leading-none text-stone-500 dark:text-stone-400">
+                                {r.emoji}{r.count > 1 ? r.count : ''}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+
+                  {isOwn && (
+                    <button
+                      onClick={() => setCompanionModal('add')}
+                      className="w-20 h-20 flex-shrink-0 rounded-xl border-2 border-dashed border-stone-300 dark:border-stone-600 hover:border-amber-400 dark:hover:border-amber-500 text-stone-400 dark:text-stone-500 hover:text-amber-500 dark:hover:text-amber-400 flex items-center justify-center text-2xl transition-colors"
+                      aria-label="Add companion"
+                    >
+                      +
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="border-t border-stone-100 dark:border-stone-700 mb-4" />
+
           {/* Meta */}
           <div className="flex flex-wrap gap-3 text-sm text-stone-500 dark:text-stone-400 mb-4">
             {birthYear && <span>Born {birthYear}</span>}
@@ -599,90 +685,6 @@ export default function ProfileDetail() {
             </div>
           )}
 
-          {/* Companions — first class, directly after meta */}
-          {(canEdit || companions.length > 0) && (
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">
-                  Companions{companions.length > 0 ? ` (${companions.length})` : ''}
-                </span>
-                {canReorder && (
-                  <span className="text-xs text-stone-300 dark:text-stone-600 select-none">· drag to reorder</span>
-                )}
-              </div>
-              <div className="-mx-6 overflow-x-auto">
-                <div className="flex gap-3 pt-4 pb-2 px-6 items-start">
-                  {companions.map((companion, idx) => {
-                    const cReactions = (companionReactions[companion.id] || []).filter(r => r.count > 0)
-                    return (
-                      <div
-                        key={companion.id}
-                        draggable={canReorder}
-                        onDragStart={canReorder ? (e) => handleDragStart(e, idx) : undefined}
-                        onDragOver={canReorder ? (e) => handleDragOver(e, idx) : undefined}
-                        onDrop={canReorder ? (e) => handleDrop(e, idx) : undefined}
-                        onDragEnd={canReorder ? handleDragEnd : undefined}
-                        onClick={() => setSelectedCompanion(companion)}
-                        className={[
-                          'relative flex flex-col items-center w-20 flex-shrink-0 group/comp hover:z-10 transition-all duration-150',
-                          canReorder ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-                          dragFromIdx === idx ? 'opacity-40' : '',
-                          dragOverIdx === idx && dragFromIdx !== idx
-                            ? 'outline outline-2 outline-amber-300 dark:outline-amber-600 rounded-xl'
-                            : '',
-                        ].filter(Boolean).join(' ')}
-                      >
-                        <div className={[
-                          'w-20 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30 group-hover/comp:scale-[1.5] transition-transform duration-200 origin-center flex-shrink-0',
-                          companion.id === primaryCompanionId ? 'ring-2 ring-amber-400 dark:ring-amber-400' : '',
-                        ].filter(Boolean).join(' ')}>
-                          {companion.profileImageUrl ? (
-                            <img
-                              src={getImageUrl(companion.profileImageUrl)}
-                              alt={companion.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-xl select-none">
-                              ✨
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-xs font-medium text-stone-700 dark:text-stone-200 mt-1 text-center w-full truncate">
-                          {companion.name}
-                        </p>
-                        {companion.alignment != null && (
-                          <p className="text-[10px] text-purple-500 dark:text-purple-400 text-center w-full truncate">
-                            {ALIGNMENT_LABELS[companion.alignment]}
-                          </p>
-                        )}
-                        {cReactions.length > 0 && (
-                          <div className="flex flex-wrap justify-center gap-0.5 mt-0.5">
-                            {cReactions.slice(0, 3).map(r => (
-                              <span key={r.emojiKey} className="text-[10px] leading-none text-stone-500 dark:text-stone-400">
-                                {r.emoji}{r.count > 1 ? r.count : ''}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-
-                  {isOwn && (
-                    <button
-                      onClick={() => setCompanionModal('add')}
-                      className="w-20 h-20 flex-shrink-0 rounded-xl border-2 border-dashed border-stone-300 dark:border-stone-600 hover:border-amber-400 dark:hover:border-amber-500 text-stone-400 dark:text-stone-500 hover:text-amber-500 dark:hover:text-amber-400 flex items-center justify-center text-2xl transition-colors"
-                      aria-label="Add companion"
-                    >
-                      +
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Profile visit stats — only visible to the owner */}
           {isOwn && (user.visitCount > 0 || user.uniqueVisitorCount > 0) && (
             <div className="mb-4 flex gap-4 text-xs text-stone-400 dark:text-stone-500 items-center flex-wrap">
@@ -770,8 +772,8 @@ export default function ProfileDetail() {
             </div>
           )}
 
-          {/* Skills / LLM Experience / Languages — three columns */}
-          <div className="mb-4 pt-4 border-t border-stone-100 dark:border-stone-700 grid grid-cols-3 gap-4">
+          {/* Skills / LLM Experience / Languages / Links — four columns */}
+          <div className="mb-4 pt-4 border-t border-stone-100 dark:border-stone-700 grid grid-cols-4 gap-4">
             {/* Skills */}
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -838,6 +840,34 @@ export default function ProfileDetail() {
                 </div>
               </div>
             ) : <div />}
+
+            {/* Links */}
+            {(canEdit || user.links?.length > 0) ? (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">Links</span>
+                  {canEdit && <SectionEditButton onClick={() => setShowEditLinks(true)} />}
+                </div>
+                {user.links?.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {user.links.map((link) => (
+                      <a
+                        key={link.id}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 px-2.5 py-1 rounded-full hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors"
+                      >
+                        {link.label || link.url}
+                        <span className="text-amber-400 dark:text-amber-600">↗</span>
+                      </a>
+                    ))}
+                  </div>
+                ) : canEdit ? (
+                  <p className="text-xs text-stone-400 dark:text-stone-500">No links added yet.</p>
+                ) : null}
+              </div>
+            ) : <div />}
           </div>
 
           {/* Bio — collapsible */}
@@ -873,33 +903,6 @@ export default function ProfileDetail() {
             </div>
           )}
 
-          {/* Links */}
-          {(canEdit || user.links?.length > 0) && (
-            <div className="mt-3">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">Links</span>
-                {canEdit && <SectionEditButton onClick={() => setShowEditLinks(true)} />}
-              </div>
-              {user.links?.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {user.links.map((link) => (
-                    <a
-                      key={link.id}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 px-3 py-1 rounded-full hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors"
-                    >
-                      {link.label || link.url}
-                      <span className="text-amber-400 dark:text-amber-600">↗</span>
-                    </a>
-                  ))}
-                </div>
-              ) : canEdit ? (
-                <p className="text-xs text-stone-400 dark:text-stone-500">No links added yet.</p>
-              ) : null}
-            </div>
-          )}
 
           {/* Thoughts Library */}
           {(() => {
