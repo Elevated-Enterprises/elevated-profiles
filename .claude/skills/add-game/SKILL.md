@@ -1,17 +1,17 @@
 ---
 name: add-game
-description: Adds a new multiplayer game to the platform, following the established Pig Game pattern (SignalR real-time, MongoDB persistence, React frontend).
+description: Adds a new multiplayer game to the platform, following the established Pig/Yahtzee pattern (SignalR real-time, MongoDB persistence, React frontend).
 user-invocable: true
 ---
 
 # Add a New Game
 
-Use the Pig Game as the canonical reference implementation. Every file listed below has a direct counterpart there.
+The canonical reference implementations are **Pig Dice** (first game, includes bots) and **Yahtzee** (second game, confirmed the pattern). Read both before starting. The full architectural reference is in the Obsidian vault at `games/game implementation guidelines.md`.
 
 The user will tell you the game name (e.g. "Blackjack"). Derive all identifiers from it:
 
 | Concept | Pattern | Example |
-|---------|---------|---------|
+|---|---|---|
 | C# class prefix | PascalCase | `Blackjack` |
 | Route / slug prefix | lowercase | `blackjack` |
 | Slug format | `{prefix}-{6 random alphanumeric chars}` | `blackjack-a1b2c3` |
@@ -26,82 +26,161 @@ The user will tell you the game name (e.g. "Blackjack"). Derive all identifiers 
 
 ## Backend — files to create
 
-All new files go under `backend/src/SecondCircuitProfiles.Api/`.
+All new files under `backend/src/SecondCircuitProfiles.Api/`.
 
 ### 1. Model (`Models/{Name}Game.cs`)
 
-Copy the structure from `Models/PigGame.cs`. Adapt:
-- `{Name}GameStatus` enum: at minimum `Lobby`, `InProgress`, `Finished`, `Closed`
-- `{Name}Participant`: keep `userId`, `username`, `userSlug`, `avatarUrl`, `role` ("player"/"watcher"), `isConnected`, `connectionId` (not persisted). Add game-specific score fields.
-- `{Name}Game`: keep `slug`, `name`, `gmUserId`, `gmUsername`, `participants`, `lastActivity`, `createdAt`, `updatedAt`. Add `Lock` (SemaphoreSlim) and any timer CancellationTokenSources as `[BsonIgnore]`.
+Status enum: `Lobby`, `InProgress`, `Finished`, `Closed`.
+
+Participant fields (mandatory):
+- `UserId`, `Username` (discord_username), `DisplayName` (alternative_name — may differ), `UserSlug`, `AvatarUrl`
+- `Role` ("player" | "watcher"), `IsConnected`
+- `[BsonIgnore] string? ConnectionId` (transient)
+- game-specific score fields
+
+Game fields (mandatory):
+- `Id` (ObjectId), `Slug`, `Name`, `GmUserId`, `GmUsername`
+- `List<{Name}Participant> Participants`
+- `int CurrentPlayerIndex`
+- `bool PlayAgainVoteActive`, `Dictionary<string, bool> PlayAgainVotes`
+- `{Name}GameStatus Status`, `LastActivity`, `CreatedAt`, `UpdatedAt`
+- `[BsonIgnore] SemaphoreSlim Lock = new(1, 1)`
+- `[BsonIgnore] CancellationTokenSource? IdleCts`, `DisconnectCts`, `PlayAgainCts`
+
+Also add `GetParticipant(userId)` helper, and `CurrentActiveUserId` computed property.
+
+**TurnOrder approach:** Pig uses an explicit `List<string> TurnOrder`; Yahtzee derives it at runtime from `Participants.Where(p => p.Role == "player")`. Choose the one that fits the game.
 
 ### 2. Service interface (`Services/I{Name}Service.cs`)
 
-Minimum surface:
+Define DTOs in the same file. Minimum required methods:
+
 ```csharp
-Task<{Name}Game> CreateGameAsync(string gmUserId, string gmUsername, string? gmAvatarUrl, string? customName);
-Task<({Name}Game? game, string? error)> HandleConnectionAsync(string connectionId, string gameSlug, string userId, string username, string userSlug, string? avatarUrl, IHubCallerClients clients, IGroupManager groups);
-Task HandleDisconnectionAsync(string connectionId, IHubCallerClients clients, IGroupManager groups);
-Task<PagedResult<{Name}GameSummaryDto>> GetOpenGamesAsync(int page, int pageSize);
-// + game-specific action methods (Roll, Hold, etc.)
+Task<({Name}Game game, string? error)> CreateGameAsync(
+    string userId, string username, string? displayName, string? userSlug, string? avatarUrl, string? customName);
+
+Task<({Name}GameStateDto? state, string? error)> HandleConnectionAsync(
+    string? slug, string userId, string username, string? displayName, string? userSlug, string? avatarUrl,
+    string connectionId, bool isListMode);
+
+Task HandleDisconnectionAsync(string? slug, string userId, string connectionId, bool isListMode);
+
+Task<List<{Name}GameSummaryDto>> GetOpenGamesAsync(int page, int pageSize);
+Task<int> GetOpenGamesCountAsync();
+
+Task StartGameAsync(string slug, string userId);
+Task CancelGameAsync(string slug, string userId);
+Task VotePlayAgainAsync(string slug, string userId, bool vote);
+Task InitiatePlayAgainAsync(string slug, string userId);
+Task SendChatAsync(string slug, string userId, string username, string text);
 Task CleanupAbandonedGamesAsync();
+// + game-specific action methods
 ```
+
+No `IHubCallerClients` or `IGroupManager` in the interface — services receive a `IHubContext<{Name}Hub>` via DI.
 
 ### 3. Service (`Services/{Name}Service.cs`)
 
-Key constants (adjust per game):
+Constructor signature:
 ```csharp
-private const int MaxActivePlayers = 6;
-private const int IdleTimeoutSeconds = 60;
-private const int DisconnectTimeoutSeconds = 30;
-private const int PlayAgainTimeoutSeconds = 60;
-private static string GameGroup(string slug) => $"{prefix}-{slug}";
-private const string ListGroup = "{prefix}-list";
+public class {Name}Service(
+    MongoDbContext db,
+    IHubContext<{Name}Hub> hub,
+    ILogger<{Name}Service> logger,
+    IGameStatsService gameStatsService) : I{Name}Service
 ```
 
-State: `private ConcurrentDictionary<string, {Name}Game> _games`
+Key constants:
+```csharp
+private const int MaxActivePlayers = 6;       // tune per game
+private const int IdleTimeoutSeconds = 60;    // Pig: 60, Yahtzee: 90
+private const int DisconnectTimeoutSeconds = 30;
+private const int PlayAgainTimeoutSeconds = 60;
+private const string ListGroup = "{prefix}-list";
+private static string GameGroup(string slug) => $"{prefix}-{slug}";
+```
 
-Lock pattern — wrap every public method body:
+In-memory state: `private readonly ConcurrentDictionary<string, {Name}Game> _games = new();`
+
+**Lock pattern** — every public method touching a game:
 ```csharp
 await game.Lock.WaitAsync();
 try { ... }
 finally { game.Lock.Release(); }
 ```
 
-Persist after every state change:
+**Persistence** — filter by Slug, not Id:
 ```csharp
-private async Task PersistAsync({Name}Game game) {
+private async Task PersistAsync({Name}Game game)
+{
     game.UpdatedAt = DateTime.UtcNow;
-    await _db.{Name}Games.ReplaceOneAsync(g => g.Id == game.Id, game, new ReplaceOptions { IsUpsert = true });
+    var filter = Builders<{Name}Game>.Filter.Eq(g => g.Slug, game.Slug);
+    await db.{Name}Games.ReplaceOneAsync(filter, game, new ReplaceOptions { IsUpsert = true });
 }
 ```
 
-Slug generation:
+**Crash recovery:**
+```csharp
+private async Task<{Name}Game> GetOrLoadGameAsync(string slug)
+{
+    if (_games.TryGetValue(slug, out var cached)) return cached;
+    var fromDb = await db.{Name}Games.Find(g => g.Slug == slug).FirstOrDefaultAsync()
+        ?? throw new InvalidOperationException($"Game '{slug}' not found.");
+    foreach (var p in fromDb.Participants) p.IsConnected = false;
+    _games[slug] = fromDb;
+    return fromDb;
+}
+```
+
+**Slug generation:**
 ```csharp
 const string chars = "abcdefghijklmnopqrstuvwxyz0123456789";
 var slug = "{prefix}-" + RandomNumberGenerator.GetString(chars, 6);
 ```
 
-Idle countdown pattern:
+**Avatar lookup in HandleConnectionAsync:**
 ```csharp
-for (var i = IdleTimeoutSeconds; i >= 0; i--) {
-    await clients.Group(GameGroup(slug)).SendAsync("IdleCountdown", i, ct);
-    await Task.Delay(1000, ct);
+if (avatarUrl is null && userSlug is not null)
+{
+    var dbUser = await db.Users.Find(u => u.Slug == userSlug).FirstOrDefaultAsync();
+    avatarUrl = dbUser?.ProfileImageFilename;
 }
 ```
 
-The `IdleCountdown` event is broadcast to the **entire game group** (all players and watchers), not just the active player.
+**Open games list** — prefer in-memory, MongoDB fallback for fresh restarts.
+
+**BroadcastOpenGames()** — call whenever the visible list might change (create, start, join, finish, cancel, close).
+
+**Idle timer** — countdown sent to the entire game group (not just the active player). On expiry, auto-advance the turn (Yahtzee: auto-select worst category; Pig: auto-hold).
+
+**Stats recording** at game end:
+```csharp
+await gameStatsService.RecordGameAsync("{prefix}", results, hadBots: false);
+```
+
+**Cleanup** — evict from memory if `Status == Closed` or `LastActivity < DateTime.UtcNow.AddHours(-12)`. Also update stale DB records to `Closed`.
 
 ### 4. Cleanup service (`Services/{Name}CleanupService.cs`)
 
-Copy `PigCleanupService.cs` verbatim, replace `Pig` → `{Name}` throughout.
+Copy `PigCleanupService.cs` verbatim, replace `Pig` → `{Name}`. Runs every 5 minutes.
 
 ### 5. Hub (`Hubs/{Name}Hub.cs`)
 
-Copy `PigHub.cs` structure. Adapt:
-- Query param check: `path.StartsWithSegments("/hubs/{prefix}")`
-- Group names from `{Name}Service`
-- Hub methods match the game's actions
+Claims extraction (same pattern in every hub):
+```csharp
+private string UserId => Context.User?.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw ...;
+private string Username => Context.User?.FindFirstValue("discord_username") ?? "Unknown";
+private string? AlternativeName => Context.User?.FindFirstValue("alternative_name");
+private string? UserSlug => Context.User?.FindFirstValue("slug");
+private string? GameSlug => Context.GetHttpContext()?.Request.Query["gameSlug"]... ;
+private bool IsListMode => Context.GetHttpContext()?.Request.Query["mode"] == "list";
+```
+
+`OnConnectedAsync`: abort if not list mode and no slug → add to group → call `HandleConnectionAsync` → send `"GameState"` or `"Error"`.
+
+`OnDisconnectedAsync`: call `HandleDisconnectionAsync`, swallow exceptions.
+
+Hub methods: one per game action, guard with `if (slug is null) return`.
 
 ---
 
@@ -109,49 +188,27 @@ Copy `PigHub.cs` structure. Adapt:
 
 ### `Services/MongoDbContext.cs`
 
-Add collection property:
-```csharp
-public IMongoCollection<{Name}Game> {Name}Games { get; }
-```
-
-In constructor, initialise and add indexes:
-```csharp
-{Name}Games = database.GetCollection<{Name}Game>("{prefix}_games");
-```
-
-In `EnsureIndexes()`:
-```csharp
-await {Name}Games.Indexes.CreateManyAsync([
-    new CreateIndexModel<{Name}Game>(Builders<{Name}Game>.IndexKeys.Ascending(g => g.Slug), new CreateIndexOptions { Unique = true }),
-    new CreateIndexModel<{Name}Game>(Builders<{Name}Game>.IndexKeys.Ascending(g => g.Status)),
-    new CreateIndexModel<{Name}Game>(Builders<{Name}Game>.IndexKeys.Descending(g => g.LastActivity)),
-]);
-```
+Add collection property, initialise in constructor, add 3 indexes in `EnsureIndexes()`: unique on `Slug`, on `Status`, descending on `LastActivity`.
 
 ### `Controllers/{Name}Controller.cs`
 
-Minimal REST surface (copy PigController):
-- `POST /api/{prefix}` — create game (requires `[Authorize]`)
-- `GET /api/{prefix}?page=&pageSize=` — list open games (requires `[Authorize]`)
+Inject both `I{Name}Service` and `IUserService`. Look up avatar via `userService.GetBySlug(UserSlug)` before calling `CreateGameAsync`. Pass `AlternativeName` from the `alternative_name` claim.
 
 ### `Program.cs`
 
-Three additions:
-
 ```csharp
-// 1. Service registration (near Pig registrations)
+// Service registration
 builder.Services.AddSingleton<I{Name}Service, {Name}Service>();
 builder.Services.AddHostedService<{Name}CleanupService>();
 
-// 2. JWT for SignalR — extend the existing OnMessageReceived lambda:
-if (!string.IsNullOrEmpty(accessToken) && (
-    path.StartsWithSegments("/hubs/pig") ||
-    path.StartsWithSegments("/hubs/{prefix}")))   // ← add this line
-    context.Token = accessToken;
+// JWT for SignalR — extend the existing OnMessageReceived lambda
+path.StartsWithSegments("/hubs/{prefix}")   // add alongside existing hub paths
 
-// 3. Hub mapping (near app.MapHub<PigHub>)
+// Hub mapping
 app.MapHub<{Name}Hub>("/hubs/{prefix}");
 ```
+
+`IGameStatsService` is already registered — do not add it again.
 
 ---
 
@@ -159,21 +216,21 @@ app.MapHub<{Name}Hub>("/hubs/{prefix}");
 
 ### `frontend/src/pages/{Name}GameList.jsx`
 
-Copy `PigGameList.jsx`. Replace:
-- SignalR URL: `/hubs/{prefix}?mode=list&access_token={token}`
-- REST call: `getOpen{Name}Games(page, pageSize)`
-- Links: `/pig/...` → `/{prefix}/...`
-- Display text / heading
+Copy `PigGameList.jsx`. Change:
+- SignalR URL: `/hubs/{prefix}?mode=list&access_token=${token}`
+- Import `create{Name}Game` from `../lib/api`
+- Navigate to `/{prefix}/${res.slug}` after creation
+- Update display text/headings
 
 ### `frontend/src/pages/{Name}Game.jsx`
 
-Copy `PigGame.jsx`. The reducer's action types and state shape will change most — this is where the actual game logic lives. Keep:
-- `useReducer` pattern with a `dispatch`-based state machine
-- `phase` as the top-level state discriminant: `connecting → lobby → in-progress → finished → play-again → closed | error`
-- SignalR connection at `/hubs/{prefix}?gameSlug={slug}&access_token={token}`
-- The `Avatar` helper (deterministic gradient, reuse as-is)
+Copy `PigGame.jsx`. The reducer action types and state shape change per game — this is where the actual game UI and logic lives. Keep:
+- `useReducer` with `dispatch`-based state machine
+- `phase` as top-level discriminant: `connecting → lobby → in-progress → finished → play-again → closed | error`
+- SignalR URL: `/hubs/{prefix}?gameSlug={slug}&access_token=${token}`
+- `Avatar` helper (deterministic gradient by username hash)
 - `ParticipantCard` structure
-- `IdleCountdownRing` — visual SVG ring countdown shown to all players. State needs both `idleCountdown` (current seconds) and `idleCountdownMax` (set once when countdown starts, i.e. when `state.idleCountdown === null` before the first `IDLE_COUNTDOWN` event). Reset both to `null` on every turn transition. Ring goes amber → red + pulsing below 33% (120° of 360°).
+- `IdleCountdownRing` — SVG ring countdown to all players. State needs `idleCountdown` (current value) and `idleCountdownMax` (captured once at first tick, when `state.idleCountdown === null`). Reset both to `null` on turn transition. Ring turns amber → red + pulsing below 33%.
 
 ---
 
@@ -181,7 +238,6 @@ Copy `PigGame.jsx`. The reducer's action types and state shape will change most 
 
 ### `frontend/src/lib/api.js`
 
-Add two exported functions alongside the Pig functions:
 ```js
 export const create{Name}Game = (customName) =>
     api.post('/api/{prefix}', { customName }).then(r => r.data);
@@ -192,40 +248,36 @@ export const getOpen{Name}Games = (page = 1, pageSize = 20) =>
 
 ### `frontend/src/App.jsx`
 
-Add two routes (copy the Pig route block):
 ```jsx
 import {Name}GameList from './pages/{Name}GameList';
 import {Name}Game from './pages/{Name}Game';
 
-// inside <Routes>:
 <Route path="/{prefix}" element={<{Name}GameList />} />
 <Route path="/{prefix}/:slug" element={<ProtectedRoute><{Name}Game /></ProtectedRoute>} />
 ```
 
 ### `frontend/src/components/Navbar.jsx`
 
-Add a nav link next to the Pig link:
-```jsx
-<NavLink to="/{prefix}">🎮 {Display Name}</NavLink>
-```
+Add nav link next to existing game links.
 
 ---
 
-## Implementation order
+## Implementation Order
 
-1. Backend model → service interface → service → cleanup service → hub
-2. MongoDbContext → Controller → Program.cs
-3. Frontend api.js → GameList page → Game page
-4. App.jsx routes → Navbar link
-5. Smoke test: create game, join from second browser tab, play a turn
+1. Model → service interface + DTOs → service → cleanup service → hub
+2. MongoDbContext → controller → Program.cs
+3. `api.js` → GameList page → Game page
+4. `App.jsx` routes → Navbar link
+5. Smoke test: create game, join from second browser tab, play a full turn
 
 ---
 
-## Key decisions to confirm with the user before starting
+## Questions to Confirm Before Starting
 
-- Game name (determines all identifiers above)
-- Max concurrent players (default: 6, rest become watchers)
+- Game name (determines all identifiers)
+- Max concurrent players (default: 6)
+- Turn-based or simultaneous?
 - Win condition
-- Turn structure: is it turn-based like Pig, or simultaneous?
-- Idle timeout (default: 60 s)
-- Whether "Play Again" voting is needed (default: yes, copy from Pig)
+- Idle timeout duration (default: 60 s)
+- Bots needed? (Pig has them; Yahtzee does not)
+- Play Again voting needed? (default: yes)
