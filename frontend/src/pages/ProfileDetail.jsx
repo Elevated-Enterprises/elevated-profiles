@@ -514,19 +514,23 @@ export default function ProfileDetail() {
           </div>
 
           {/* Profile visit stats + insights — only visible to the owner */}
-          {isOwn && (user.visitCount > 0 || user.uniqueVisitorCount > 0) && (
+          {isOwn && (
             <div className="mb-4 flex gap-4 text-xs text-stone-400 dark:text-stone-500 items-center flex-wrap">
-              <span title="Total visits to your profile">
-                👁 {user.visitCount ?? 0} visit{user.visitCount !== 1 ? 's' : ''}
-              </span>
-              <span title="Unique members who visited your profile">
-                👤 {user.uniqueVisitorCount ?? 0} unique visitor{user.uniqueVisitorCount !== 1 ? 's' : ''}
-              </span>
+              {(user.visitCount > 0 || user.uniqueVisitorCount > 0) && (
+                <>
+                  <span title="Total visits to your profile">
+                    👁 {user.visitCount ?? 0} visit{user.visitCount !== 1 ? 's' : ''}
+                  </span>
+                  <span title="Unique members who visited your profile">
+                    👤 {user.uniqueVisitorCount ?? 0} unique visitor{user.uniqueVisitorCount !== 1 ? 's' : ''}
+                  </span>
+                </>
+              )}
               <button
                 onClick={handleLoadProfileInsights}
                 className="text-xs text-stone-400 hover:text-amber-600 dark:hover:text-amber-400 underline transition-colors"
               >
-                {showProfileInsights ? 'Hide details' : 'Show details'}
+                {showProfileInsights ? 'Hide insights' : 'Insights'}
               </button>
             </div>
           )}

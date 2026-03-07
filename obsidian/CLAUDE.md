@@ -13,6 +13,10 @@ Monorepo for [profiles.secondcircuit.io](https://profiles.secondcircuit.io) — 
 
 Each subdirectory has its own `CLAUDE.md` with detailed architecture notes. Read it before working in that project.
 
+## Obsidian
+
+This monorepo also contains an `obsidian/` folder - this is what the user means when he talks about Obsidian. It's an obsidian vault.
+
 ## CI/CD
 
 Single workflow at `.github/workflows/docker.yml` builds both projects in parallel on every push to `main`. Images are published to GHCR with `latest` + `sha` + semver tags:

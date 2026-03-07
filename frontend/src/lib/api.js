@@ -234,4 +234,7 @@ export const getProfileInsights = (slug) =>
 export const getCompanionReactionInsights = (slug, companionId) =>
   api.get(`/api/users/${slug}/companions/${companionId}/reaction-insights`)
 
+export const getGameReactionInsights = (gameType) =>
+  api.get(`/api/stats/games/${gameType}/reaction-insights`)
+
 export default api

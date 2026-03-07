@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getGameLeaderboard } from '../lib/api'
+import { getGameLeaderboard, getReactions, getActiveEmojis, addReaction, removeReaction, getGameReactionInsights } from '../lib/api'
+import { useAuth } from '../context/AuthContext'
+import ReactionSummary from '../components/reactions/ReactionSummary'
+import ReactionPicker from '../components/reactions/ReactionPicker'
 
 function timeAgo(date) {
   const secs = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
@@ -93,10 +96,114 @@ function LeaderboardTable({ entries, title, showBotCategory }) {
   )
 }
 
+const GAMES = [
+  {
+    key: 'pig',
+    path: '/pig',
+    emoji: '🐷',
+    title: 'Pig Dice',
+    desc: 'Roll dice and race to 100 points — but roll a 1 and lose your turn score!',
+  },
+  {
+    key: 'yahtzee',
+    path: '/yahtzee',
+    emoji: '🎯',
+    title: 'Yahtzee',
+    desc: 'Roll five dice up to three times per turn and fill your scorecard to outscore your rivals.',
+  },
+]
+
+function GameCard({ game, reactions, emojis, pickerOpen, onTogglePicker, onReactionToggle, onReloadReactions, insights, insightsOpen, insightsLoading, onToggleInsights }) {
+  const { user } = useAuth()
+
+  return (
+    <div className="group bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 shadow-sm hover:border-amber-300 dark:hover:border-amber-700 hover:shadow-md transition-all overflow-hidden">
+      <Link to={game.path} className="block p-5">
+        <div className="text-4xl mb-3">{game.emoji}</div>
+        <h2 className="text-lg font-bold text-stone-800 dark:text-stone-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors mb-1">
+          {game.title}
+        </h2>
+        <p className="text-sm text-stone-500 dark:text-stone-400">{game.desc}</p>
+        <div className="mt-3 text-xs font-medium text-amber-600 dark:text-amber-400 group-hover:underline">
+          Play now →
+        </div>
+      </Link>
+
+      <div className="px-5 pb-4 pt-3 border-t border-stone-100 dark:border-stone-700">
+        <div className="flex items-center gap-3 flex-wrap">
+          <ReactionSummary
+            reactions={reactions}
+            targetId={game.key}
+            targetType="game"
+            onUpdate={onReloadReactions}
+          />
+          {user && (
+            <div className="relative">
+              <button
+                onClick={() => onTogglePicker(game.key)}
+                className="text-sm text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 border border-stone-200 dark:border-stone-600 rounded-full px-2 py-0.5"
+              >
+                + React
+              </button>
+              {pickerOpen && (
+                <div className="absolute bottom-full left-0 mb-2 z-20">
+                  <ReactionPicker
+                    emojis={emojis}
+                    userReactions={reactions.filter(r => r.userHasReacted).map(r => r.emojiKey)}
+                    onSelect={(emojiKey) => onReactionToggle(game.key, emojiKey)}
+                    onClose={() => onTogglePicker(null)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          <button
+            onClick={() => onToggleInsights(game.key)}
+            className="text-xs text-stone-400 hover:text-amber-600 dark:hover:text-amber-400 underline transition-colors"
+          >
+            {insightsOpen ? 'Hide insights' : 'Insights'}
+          </button>
+        </div>
+
+        {insightsOpen && (
+          <div className="mt-3 bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-lg p-3 text-xs space-y-3">
+            {insightsLoading ? (
+              <p className="text-stone-400">Loading insights…</p>
+            ) : insights && insights.length > 0 ? (
+              insights.map(g => (
+                <div key={g.emojiKey}>
+                  <span className="text-stone-600 dark:text-stone-300 font-semibold">{g.emoji} {g.label} ({g.reactors.length})</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {g.reactors.map(r => (
+                      <Link key={r.slug} to={`/profiles/${r.slug}`}
+                        className="text-stone-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">
+                        {r.username}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-stone-400">No reactions yet.</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function Games() {
   const [pigStats, setPigStats] = useState([])
   const [yahtzeeStats, setYahtzeeStats] = useState([])
   const [loading, setLoading] = useState(true)
+
+  const [reactions, setReactions] = useState({ pig: [], yahtzee: [] })
+  const [emojis, setEmojis] = useState([])
+  const [openPicker, setOpenPicker] = useState(null)
+  const [insights, setInsights] = useState({ pig: null, yahtzee: null })
+  const [openInsights, setOpenInsights] = useState(null)
+  const [insightsLoading, setInsightsLoading] = useState(null)
 
   useEffect(() => {
     Promise.all([
@@ -106,7 +213,57 @@ export default function Games() {
       setPigStats(pig.data)
       setYahtzeeStats(yahtzee.data)
     }).catch(console.error).finally(() => setLoading(false))
+
+    getActiveEmojis().then(({ data }) => setEmojis(data)).catch(() => {})
+    loadReactions('pig')
+    loadReactions('yahtzee')
   }, [])
+
+  const loadReactions = (gameKey) => {
+    getReactions(gameKey, 'game').then(({ data }) =>
+      setReactions(prev => ({ ...prev, [gameKey]: data }))
+    ).catch(() => {})
+  }
+
+  const handleTogglePicker = (gameKey) => {
+    setOpenPicker(prev => prev === gameKey ? null : gameKey)
+  }
+
+  const handleReactionToggle = async (gameKey, emojiKey) => {
+    const existing = reactions[gameKey].find(r => r.emojiKey === emojiKey && r.userHasReacted)
+    try {
+      if (existing) {
+        await removeReaction(gameKey, 'game', emojiKey)
+      } else {
+        await addReaction(gameKey, 'game', emojiKey)
+      }
+      loadReactions(gameKey)
+      // Reload insights if open so they stay in sync
+      if (openInsights === gameKey) {
+        const { data } = await getGameReactionInsights(gameKey)
+        setInsights(prev => ({ ...prev, [gameKey]: data }))
+      }
+    } catch { /* ignore */ }
+    setOpenPicker(null)
+  }
+
+  const handleToggleInsights = async (gameKey) => {
+    if (openInsights === gameKey) {
+      setOpenInsights(null)
+      return
+    }
+    setOpenInsights(gameKey)
+    if (insights[gameKey] !== null) return
+    setInsightsLoading(gameKey)
+    try {
+      const { data } = await getGameReactionInsights(gameKey)
+      setInsights(prev => ({ ...prev, [gameKey]: data }))
+    } catch {
+      setInsights(prev => ({ ...prev, [gameKey]: [] }))
+    } finally {
+      setInsightsLoading(null)
+    }
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -117,37 +274,22 @@ export default function Games() {
 
       {/* Game cards */}
       <div className="grid sm:grid-cols-2 gap-4 mb-10">
-        <Link
-          to="/pig"
-          className="group bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-5 shadow-sm hover:border-amber-300 dark:hover:border-amber-700 hover:shadow-md transition-all"
-        >
-          <div className="text-4xl mb-3">🐷</div>
-          <h2 className="text-lg font-bold text-stone-800 dark:text-stone-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors mb-1">
-            Pig Dice
-          </h2>
-          <p className="text-sm text-stone-500 dark:text-stone-400">
-            Roll dice and race to 100 points — but roll a 1 and lose your turn score!
-          </p>
-          <div className="mt-3 text-xs font-medium text-amber-600 dark:text-amber-400 group-hover:underline">
-            Play now →
-          </div>
-        </Link>
-
-        <Link
-          to="/yahtzee"
-          className="group bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-5 shadow-sm hover:border-amber-300 dark:hover:border-amber-700 hover:shadow-md transition-all"
-        >
-          <div className="text-4xl mb-3">🎯</div>
-          <h2 className="text-lg font-bold text-stone-800 dark:text-stone-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors mb-1">
-            Yahtzee
-          </h2>
-          <p className="text-sm text-stone-500 dark:text-stone-400">
-            Roll five dice up to three times per turn and fill your scorecard to outscore your rivals.
-          </p>
-          <div className="mt-3 text-xs font-medium text-amber-600 dark:text-amber-400 group-hover:underline">
-            Play now →
-          </div>
-        </Link>
+        {GAMES.map(game => (
+          <GameCard
+            key={game.key}
+            game={game}
+            reactions={reactions[game.key]}
+            emojis={emojis}
+            pickerOpen={openPicker === game.key}
+            onTogglePicker={handleTogglePicker}
+            onReactionToggle={handleReactionToggle}
+            onReloadReactions={() => loadReactions(game.key)}
+            insights={insights[game.key]}
+            insightsOpen={openInsights === game.key}
+            insightsLoading={insightsLoading === game.key}
+            onToggleInsights={handleToggleInsights}
+          />
+        ))}
       </div>
 
       {/* Leaderboards */}
