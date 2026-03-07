@@ -1,4 +1,4 @@
-import { useEffect, useRef, useReducer, useState, useCallback } from 'react'
+import { useEffect, useRef, useReducer, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr'
 import { useAuth } from '../context/AuthContext'
@@ -7,6 +7,8 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import CountdownRing from '../components/CountdownRing'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.profiles.secondcircuit.io'
+
+const MAX_YAHTZEE_SCORE = 375  // theoretical max without Yahtzee bonus cascades
 
 // ── Scoring category config ───────────────────────────────────────────────────
 
@@ -68,11 +70,13 @@ const initialState = {
   idleCountdown: null,
   idleCountdownMax: null,
   lastAction: null,     // { username, category, points }
+  recentlyScored: null, // { userId, category } — triggers flash in table
   rankings: null,
   playAgainVoteYes: 0,
   playAgainVoteNo: 0,
   myPlayAgainVote: null,
   bonusToast: null,     // { username, bonusCount }
+  chat: [],
   error: null,
 }
 
@@ -159,19 +163,33 @@ function reducer(state, action) {
           ? { ...p, scoreCard: action.updatedScoreCard }
           : p
       )
+      const scoreMsg = systemMsg(
+        `${action.username} scored ${action.points} pts in ${categoryLabel(action.category)}.`
+      )
       return {
         ...state,
         game: { ...state.game, participants: updatedParticipants },
         scoredThisTurn: true,
         lastAction: { username: action.username, category: action.category, points: action.points },
+        recentlyScored: { userId: action.userId, category: action.category },
         potentialScores: {},
         idleCountdown: null,
         idleCountdownMax: null,
+        chat: [...state.chat, scoreMsg].slice(-200),
       }
     }
 
-    case 'TURN_CHANGED':
+    case 'CLEAR_RECENTLY_SCORED':
+      return { ...state, recentlyScored: null }
+
+    case 'CHAT_MESSAGE':
+      return { ...state, chat: [...state.chat, action.message].slice(-200) }
+
+    case 'TURN_CHANGED': {
       if (!state.game) return state
+      const turnMsg = action.playerName
+        ? systemMsg(`It's ${action.playerName}'s turn.`)
+        : null
       return {
         ...state,
         game: { ...state.game, currentPlayerIndex: action.currentPlayerIndex },
@@ -182,7 +200,9 @@ function reducer(state, action) {
         potentialScores: {},
         idleCountdown: null,
         idleCountdownMax: null,
+        chat: turnMsg ? [...state.chat, turnMsg].slice(-200) : state.chat,
       }
+    }
 
     case 'YAHTZEE_BONUS':
       return { ...state, bonusToast: { userId: action.userId, bonusCount: action.bonusCount } }
@@ -229,6 +249,7 @@ function reducer(state, action) {
         rollCount: 0,
         scoredThisTurn: false,
         potentialScores: {},
+        recentlyScored: null,
         rankings: null,
         playAgainVoteYes: 0,
         playAgainVoteNo: 0,
@@ -340,6 +361,10 @@ function categoryLabel(cat) {
   return [...UPPER_CATS, ...LOWER_CATS].find(c => c.key === cat)?.label ?? cat
 }
 
+function systemMsg(text) {
+  return { username: 'System', role: 'system', text, timestamp: new Date().toISOString(), isSystem: true }
+}
+
 // ── Avatar component ──────────────────────────────────────────────────────────
 
 function Avatar({ username, avatarUrl, size = 'md' }) {
@@ -392,112 +417,284 @@ function Die({ value, held, canHold, onToggle, index }) {
   )
 }
 
-// ── Scorecard table ───────────────────────────────────────────────────────────
+// ── Score bar ─────────────────────────────────────────────────────────────────
 
-function ScoreCard({ sc, potentialScores, isActivePlayer, rollCount, onSelect }) {
-  const canSelect = isActivePlayer && rollCount >= 1
-
-  const upperTotal = (sc.ones ?? 0) + (sc.twos ?? 0) + (sc.threes ?? 0) +
-                     (sc.fours ?? 0) + (sc.fives ?? 0) + (sc.sixes ?? 0)
-  const bonusTarget = 63
-  const bonusProgress = Math.min(upperTotal, bonusTarget)
-  const upperBonus = upperTotal >= bonusTarget ? 35 : 0
-
-  function CatRow({ cat }) {
-    const val = sc[cat.key]
-    const filled = val !== null && val !== undefined
-    const potential = potentialScores[cat.key]
-    const isSelectable = canSelect && !filled && potential !== undefined
-
-    return (
-      <tr
-        onClick={() => isSelectable && onSelect(cat.key)}
-        className={`border-b border-stone-100 dark:border-stone-700/50 transition-colors ${
-          isSelectable
-            ? 'cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/20'
-            : ''
-        }`}
-      >
-        <td className="py-1.5 pl-2 pr-1 text-xs text-stone-600 dark:text-stone-400 font-medium" title={cat.hint}>
-          {cat.label}
-        </td>
-        <td className="py-1.5 pr-2 text-right w-16">
-          {filled ? (
-            <span className="text-xs text-stone-400 dark:text-stone-500">{val}</span>
-          ) : isSelectable ? (
-            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
-              potential === 0
-                ? 'text-red-400 bg-red-50 dark:bg-red-900/20'
-                : 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20'
-            }`}>
-              [{potential}]
-            </span>
-          ) : (
-            <span className="text-xs text-stone-300 dark:text-stone-600">—</span>
-          )}
-        </td>
-      </tr>
-    )
-  }
+function YahtzeeScoreBar({ score, potentialBest = 0, isActive = false }) {
+  const bankedPct = Math.min((score / MAX_YAHTZEE_SCORE) * 100, 100)
+  const potentialPct = isActive && potentialBest > 0
+    ? Math.min((potentialBest / MAX_YAHTZEE_SCORE) * 100, 100 - bankedPct)
+    : 0
 
   return (
-    <div className="text-sm">
-      <table className="w-full">
-        <tbody>
-          {UPPER_CATS.map(cat => <CatRow key={cat.key} cat={cat} />)}
-          <tr className="border-b border-stone-100 dark:border-stone-700/50 bg-stone-50 dark:bg-stone-700/30">
-            <td className="py-1.5 pl-2 pr-1 text-xs text-stone-500 dark:text-stone-400 italic">
-              Upper bonus (+35 if ≥63)
-            </td>
-            <td className="py-1.5 pr-2 text-right w-16 text-xs">
-              {upperBonus > 0
-                ? <span className="text-emerald-600 dark:text-emerald-400 font-semibold">+35</span>
-                : <span className="text-stone-400 dark:text-stone-500">{bonusProgress}/{bonusTarget}</span>
-              }
-            </td>
-          </tr>
-          {LOWER_CATS.map(cat => <CatRow key={cat.key} cat={cat} />)}
-          {sc.yahtzeeBonusCount > 0 && (
-            <tr className="border-b border-stone-100 dark:border-stone-700/50">
-              <td className="py-1.5 pl-2 pr-1 text-xs text-amber-600 dark:text-amber-400 font-medium">
-                Yahtzee Bonus x{sc.yahtzeeBonusCount}
-              </td>
-              <td className="py-1.5 pr-2 text-right w-16 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                +{sc.yahtzeeBonusCount * 100}
-              </td>
-            </tr>
+    <div className="mt-1 h-1.5 bg-stone-100 dark:bg-stone-700 rounded-full overflow-hidden relative">
+      <div
+        className="absolute inset-y-0 left-0 transition-all duration-500 rounded-full"
+        style={{ width: `${bankedPct}%`, backgroundColor: '#dc2626' }}
+      />
+      {potentialPct > 0 && (
+        <div
+          className="absolute inset-y-0 transition-all duration-300"
+          style={{ left: `${bankedPct}%`, width: `${potentialPct}%`, backgroundColor: '#fca5a5' }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Player bar (top overview) ─────────────────────────────────────────────────
+
+function PlayerBar({ participant, isActive, isMine, potentialBest = 0 }) {
+  const score = participant.scoreCard?.grandTotal ?? 0
+  return (
+    <div className={`flex items-center gap-2.5 p-2 rounded-xl transition-colors ${
+      isActive
+        ? 'bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-300 dark:ring-amber-700'
+        : 'hover:bg-stone-50 dark:hover:bg-stone-700/30'
+    }`}>
+      <div className="relative flex-shrink-0">
+        <Avatar username={participant.username} avatarUrl={participant.avatarUrl} size="sm" />
+        {!participant.isConnected && (
+          <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-stone-400 rounded-full border-2 border-white dark:border-stone-800" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-xs font-medium text-stone-800 dark:text-stone-100 truncate">
+            {isMine ? 'You' : participant.username}
+          </span>
+          {isActive && (
+            <span className="text-xs bg-amber-400 dark:bg-amber-600 text-white px-1 py-0.5 rounded-full leading-none">▶</span>
           )}
-        </tbody>
-      </table>
-      <div className="flex items-center justify-between px-2 pt-2 pb-1 border-t-2 border-stone-200 dark:border-stone-600 mt-1">
-        <span className="text-xs font-bold text-stone-600 dark:text-stone-300 uppercase tracking-wider">Total</span>
-        <span className="text-base font-bold text-stone-800 dark:text-stone-100">{sc.grandTotal ?? 0}</span>
+        </div>
+        <div className="text-xs text-stone-500 dark:text-stone-400">
+          {score} pts
+          {isActive && potentialBest > 0 && (
+            <span className="text-red-300 dark:text-red-400 ml-1">+{potentialBest}</span>
+          )}
+        </div>
+        <YahtzeeScoreBar score={score} potentialBest={potentialBest} isActive={isActive} />
       </div>
     </div>
   )
 }
 
-// ── Participant chip in header ────────────────────────────────────────────────
+// ── Chat panel ────────────────────────────────────────────────────────────────
 
-function PlayerChip({ participant, isActive, isMine }) {
+function ChatPanel({ messages, onSend, disabled, showSystem, onToggleSystem }) {
+  const [text, setText] = useState('')
+  const bottomRef = useRef(null)
+  const visible = showSystem ? messages : messages.filter(m => !m.isSystem)
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [visible])
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!text.trim()) return
+    onSend(text.trim())
+    setText('')
+  }
+
   return (
-    <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs transition-colors ${
-      isActive
-        ? 'bg-amber-100 dark:bg-amber-900/30 ring-1 ring-amber-300 dark:ring-amber-700'
-        : 'bg-stone-100 dark:bg-stone-700/50'
-    }`}>
-      <Avatar username={participant.username} avatarUrl={participant.avatarUrl} size="sm" />
-      <div>
-        <div className="font-medium text-stone-700 dark:text-stone-200 truncate max-w-[80px]">
-          {isMine ? 'You' : participant.username}
-        </div>
-        <div className="text-stone-400 dark:text-stone-500">
-          {participant.scoreCard?.grandTotal ?? 0} pts
-        </div>
+    <div className="flex flex-col h-full min-h-0">
+      <div className="px-3 py-1.5 border-b border-stone-100 dark:border-stone-700 flex justify-end">
+        <button
+          onClick={onToggleSystem}
+          className={`text-xs px-2 py-0.5 rounded transition-colors ${
+            showSystem
+              ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20'
+              : 'text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300'
+          }`}
+          title={showSystem ? 'Hide game events' : 'Show game events'}
+        >
+          {showSystem ? 'Events on' : 'Events off'}
+        </button>
       </div>
-      {!participant.isConnected && (
-        <div className="w-2 h-2 rounded-full bg-stone-400 flex-shrink-0" title="Disconnected" />
-      )}
+      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 min-h-0">
+        {visible.length === 0 && (
+          <p className="text-xs text-stone-400 dark:text-stone-500 text-center py-4">No messages yet. Say hi!</p>
+        )}
+        {visible.map((msg, i) => (
+          <div key={i} className={`text-xs leading-relaxed ${msg.isSystem ? 'text-stone-400 dark:text-stone-500 italic text-center' : 'text-stone-700 dark:text-stone-300'}`}>
+            {!msg.isSystem && (
+              <span className="font-semibold text-stone-800 dark:text-stone-200 mr-1">{msg.username}</span>
+            )}
+            {msg.role === 'watcher' && !msg.isSystem && (
+              <span className="text-xs text-stone-400 mr-1">[W]</span>
+            )}
+            {msg.text}
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+      <form onSubmit={handleSubmit} className="px-3 py-2 border-t border-stone-100 dark:border-stone-700 flex gap-2">
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Chat..."
+          maxLength={500}
+          disabled={disabled}
+          className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-stone-200 dark:border-stone-600 bg-stone-50 dark:bg-stone-700 text-stone-800 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-amber-400 disabled:opacity-50"
+        />
+        <button
+          type="submit"
+          disabled={disabled || !text.trim()}
+          className="text-xs bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white px-2 py-1.5 rounded-lg transition-colors"
+        >
+          Send
+        </button>
+      </form>
+    </div>
+  )
+}
+
+// ── Combined scorecard table (all players as columns) ─────────────────────────
+
+function countFilled(sc) {
+  if (!sc) return 0
+  return ['ones','twos','threes','fours','fives','sixes',
+          'threeOfAKind','fourOfAKind','fullHouse','smallStraight',
+          'largeStraight','yahtzee','chance']
+    .filter(k => sc[k] !== null && sc[k] !== undefined).length
+}
+
+function CombinedScoreTable({ players, activeUserId, myUserId, potentialScores, rollCount, onSelect, recentlyScored }) {
+  const canSelect = activeUserId === myUserId && rollCount >= 1
+
+  function CatRow({ cat }) {
+    return (
+      <tr className="border-b border-stone-100 dark:border-stone-700/50">
+        <td className="py-1 pl-2 pr-1 text-xs text-stone-500 dark:text-stone-400 whitespace-nowrap font-medium" title={cat.hint}>
+          {cat.label}
+        </td>
+        {players.map(p => {
+          const sc = p.scoreCard ?? {}
+          const val = sc[cat.key]
+          const filled = val !== null && val !== undefined
+          const isActiveCol = p.userId === activeUserId
+          const isMineCol = p.userId === myUserId
+          const potential = isActiveCol && isMineCol && canSelect && !filled ? potentialScores[cat.key] : undefined
+          const isSelectable = potential !== undefined
+          const isFlashing = recentlyScored?.userId === p.userId && recentlyScored?.category === cat.key
+
+          return (
+            <td
+              key={p.userId}
+              onClick={() => isSelectable && onSelect(cat.key)}
+              className={`py-1 px-1 text-center text-xs transition-colors
+                ${isActiveCol ? 'border-x-2 border-amber-300 dark:border-amber-700 bg-amber-50/40 dark:bg-amber-900/10' : ''}
+                ${isSelectable ? 'cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/30' : ''}
+                ${isFlashing ? 'bg-amber-200 dark:bg-amber-700/60 animate-pulse' : ''}
+              `}
+            >
+              {filled ? (
+                <span className="text-stone-500 dark:text-stone-400">{val}</span>
+              ) : isSelectable ? (
+                <span className={`font-semibold px-1 py-0.5 rounded ${
+                  potential === 0
+                    ? 'text-red-400 bg-red-50 dark:bg-red-900/20'
+                    : 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20'
+                }`}>
+                  [{potential}]
+                </span>
+              ) : (
+                <span className="text-stone-300 dark:text-stone-600">—</span>
+              )}
+            </td>
+          )
+        })}
+      </tr>
+    )
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b-2 border-stone-200 dark:border-stone-600">
+            <th className="py-2 pl-2 pr-1 text-left text-xs text-stone-400 dark:text-stone-500 font-normal">Category</th>
+            {players.map(p => {
+              const isActiveCol = p.userId === activeUserId
+              const isMineCol = p.userId === myUserId
+              return (
+                <th
+                  key={p.userId}
+                  className={`py-2 px-1 text-center font-semibold text-xs
+                    ${isActiveCol
+                      ? 'border-x-2 border-t-2 border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400 rounded-t'
+                      : 'text-stone-600 dark:text-stone-300'}
+                  `}
+                >
+                  <div className="flex flex-col items-center gap-0.5">
+                    <Avatar username={p.username} avatarUrl={p.avatarUrl} size="sm" />
+                    <span className="truncate max-w-[64px]">{isMineCol ? 'You' : p.username}</span>
+                    {!p.isConnected && <span className="text-stone-400 dark:text-stone-500 text-xs">●</span>}
+                  </div>
+                </th>
+              )
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {UPPER_CATS.map(cat => <CatRow key={cat.key} cat={cat} />)}
+          {/* Upper bonus row */}
+          <tr className="border-b border-stone-100 dark:border-stone-700/50 bg-stone-50 dark:bg-stone-700/30">
+            <td className="py-1 pl-2 pr-1 text-xs text-stone-400 dark:text-stone-500 italic whitespace-nowrap">Bonus +35</td>
+            {players.map(p => {
+              const sc = p.scoreCard ?? {}
+              const upperTotal = (sc.ones ?? 0) + (sc.twos ?? 0) + (sc.threes ?? 0) + (sc.fours ?? 0) + (sc.fives ?? 0) + (sc.sixes ?? 0)
+              const bonus = upperTotal >= 63 ? 35 : 0
+              const isActiveCol = p.userId === activeUserId
+              return (
+                <td key={p.userId} className={`py-1 px-1 text-center text-xs ${isActiveCol ? 'border-x-2 border-amber-300 dark:border-amber-700 bg-amber-50/40 dark:bg-amber-900/10' : ''}`}>
+                  {bonus > 0
+                    ? <span className="text-emerald-600 dark:text-emerald-400 font-semibold">+35</span>
+                    : <span className="text-stone-400">{upperTotal}/63</span>
+                  }
+                </td>
+              )
+            })}
+          </tr>
+          {LOWER_CATS.map(cat => <CatRow key={cat.key} cat={cat} />)}
+          {/* Yahtzee bonus row — only when any player has one */}
+          {players.some(p => (p.scoreCard?.yahtzeeBonusCount ?? 0) > 0) && (
+            <tr className="border-b border-stone-100 dark:border-stone-700/50">
+              <td className="py-1 pl-2 pr-1 text-xs text-amber-600 dark:text-amber-400 italic whitespace-nowrap">YBonus</td>
+              {players.map(p => {
+                const count = p.scoreCard?.yahtzeeBonusCount ?? 0
+                const isActiveCol = p.userId === activeUserId
+                return (
+                  <td key={p.userId} className={`py-1 px-1 text-center text-xs ${isActiveCol ? 'border-x-2 border-amber-300 dark:border-amber-700 bg-amber-50/40 dark:bg-amber-900/10' : ''}`}>
+                    {count > 0
+                      ? <span className="text-amber-600 dark:text-amber-400 font-semibold">+{count * 100}</span>
+                      : <span className="text-stone-300 dark:text-stone-600">—</span>
+                    }
+                  </td>
+                )
+              })}
+            </tr>
+          )}
+          {/* Total row */}
+          <tr className="border-t-2 border-stone-200 dark:border-stone-600 bg-stone-50 dark:bg-stone-800">
+            <td className="py-2 pl-2 pr-1 text-xs font-bold text-stone-600 dark:text-stone-300 uppercase tracking-wider">Total</td>
+            {players.map(p => {
+              const sc = p.scoreCard ?? {}
+              const isActiveCol = p.userId === activeUserId
+              return (
+                <td key={p.userId} className={`py-2 px-1 text-center font-bold text-sm
+                  ${isActiveCol
+                    ? 'border-x-2 border-b-2 border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400 bg-amber-50/40 dark:bg-amber-900/10'
+                    : 'text-stone-700 dark:text-stone-200'}
+                `}>
+                  {sc.grandTotal ?? 0}
+                </td>
+              )
+            })}
+          </tr>
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -510,7 +707,8 @@ export default function YahtzeeGame() {
   const navigate = useNavigate()
   const [state, dispatch] = useReducer(reducer, initialState)
   const connectionRef = useRef(null)
-  const [scorecardTab, setScorecardTab] = useState(null)  // null = my card; userId = other player's card
+  const [showChat, setShowChat] = useState(true)
+  const [showSystemMessages, setShowSystemMessages] = useState(true)
   const bonusTimerRef = useRef(null)
   const gameRef = useRef(state.game)
   useEffect(() => { gameRef.current = state.game }, [state.game])
@@ -529,8 +727,25 @@ export default function YahtzeeGame() {
     ? computePotentialScores(state.dice, myParticipant?.scoreCard ?? {})
     : {}
 
+  // Best score achievable with current dice without re-rolling (for the active player's score bar)
+  const activePotentialBest = (state.rollCount >= 1 && !state.scoredThisTurn && activeUserId)
+    ? (() => {
+        const activeParticipant = players.find(p => p.userId === activeUserId)
+        if (!activeParticipant) return 0
+        const scores = computePotentialScores(state.dice, activeParticipant.scoreCard ?? {})
+        const vals = Object.values(scores)
+        return vals.length > 0 ? Math.max(...vals) : 0
+      })()
+    : 0
+
   const canRoll = isMyTurn && state.rollCount < 3 && !state.scoredThisTurn
   const canHold = isMyTurn && state.rollCount >= 1 && state.rollCount < 3 && !state.scoredThisTurn
+
+  const maxFilled = useMemo(() =>
+    players.length > 0 ? Math.max(...players.map(p => countFilled(p.scoreCard))) : 0,
+    [players]
+  )
+  const roundsRemaining = 13 - maxFilled
 
   // Bonus toast auto-clear
   useEffect(() => {
@@ -539,6 +754,14 @@ export default function YahtzeeGame() {
       bonusTimerRef.current = setTimeout(() => dispatch({ type: 'CLEAR_BONUS_TOAST' }), 4000)
     }
   }, [state.bonusToast])
+
+  // Recently scored flash auto-clear
+  useEffect(() => {
+    if (state.recentlyScored) {
+      const t = setTimeout(() => dispatch({ type: 'CLEAR_RECENTLY_SCORED' }), 2000)
+      return () => clearTimeout(t)
+    }
+  }, [state.recentlyScored])
 
   const connect = useCallback(() => {
     const token = localStorage.getItem('token')
@@ -615,6 +838,10 @@ export default function YahtzeeGame() {
       dispatch({ type: 'PLAY_AGAIN_RESULT', participants, currentPlayerIndex })
     })
 
+    connection.on('ChatMessage', (msg) => {
+      dispatch({ type: 'CHAT_MESSAGE', message: msg })
+    })
+
     connection.on('Error', (message) => {
       dispatch({ type: 'ERROR', message })
     })
@@ -652,6 +879,7 @@ export default function YahtzeeGame() {
     dispatch({ type: 'MY_PLAY_AGAIN_VOTE', vote })
     send('VotePlayAgain', vote)
   }
+  const handleChat = (text) => send('SendChat', text)
 
   // ── Rendering ────────────────────────────────────────────────────────────────
 
@@ -683,12 +911,9 @@ export default function YahtzeeGame() {
   if (!game) return <LoadingSpinner className="min-h-screen" />
 
   const canStart = isGm && game.status === 0 && players.length >= 2
-  const viewedPlayer = scorecardTab === null
-    ? myParticipant
-    : players.find(p => p.userId === scorecardTab) ?? myParticipant
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 min-h-screen">
+    <div className="max-w-6xl mx-auto px-4 py-6 min-h-screen">
 
       {/* Bonus Yahtzee toast */}
       {state.bonusToast && (
@@ -723,6 +948,14 @@ export default function YahtzeeGame() {
             </Link>
           </div>
         </div>
+        {state.phase === 'in-progress' && (
+          <button
+            onClick={() => setShowChat(s => !s)}
+            className="text-xs text-stone-500 dark:text-stone-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors px-2 py-1.5 rounded-lg border border-stone-200 dark:border-stone-700 md:hidden"
+          >
+            {showChat ? 'Hide Chat' : 'Chat'}
+          </button>
+        )}
       </div>
 
       {/* Lobby */}
@@ -743,7 +976,7 @@ export default function YahtzeeGame() {
 
           <div className="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-5 shadow-sm">
             <h2 className="font-semibold text-stone-800 dark:text-stone-100 mb-4">
-              Lobby — {players.length}/6 players
+              Lobby — {players.length}/4 players
             </h2>
             <div className="space-y-2 mb-5">
               {players.map(p => (
@@ -786,41 +1019,50 @@ export default function YahtzeeGame() {
 
       {/* In-progress */}
       {state.phase === 'in-progress' && (
-        <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+        <div className={`grid gap-4 ${showChat ? 'md:grid-cols-[1fr_280px]' : ''}`}>
 
-          {/* Left — dice + scorecard */}
+          {/* Left — game area */}
           <div className="space-y-4">
 
-            {/* Active player bar + countdown */}
+            {/* Player overview with score bars */}
             <div className="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-3 flex-wrap">
-                  {players.map((p, idx) => (
-                    <PlayerChip
-                      key={p.userId}
-                      participant={p}
-                      isActive={idx === (game.currentPlayerIndex % players.length)}
-                      isMine={p.userId === state.myUserId}
-                    />
-                  ))}
+              <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider">Scoreboard</h2>
+                  <span className="text-xs text-stone-400 dark:text-stone-500">
+                    Round {maxFilled + 1}/13
+                    {roundsRemaining > 0
+                      ? ` · ${roundsRemaining} round${roundsRemaining !== 1 ? 's' : ''} remaining`
+                      : ''}
+                  </span>
                 </div>
-                {state.idleCountdown !== null && state.phase === 'in-progress' && (
+                {state.idleCountdown !== null && (
                   <CountdownRing
                     seconds={state.idleCountdown}
                     maxSeconds={state.idleCountdownMax ?? state.idleCountdown}
-                    size={52}
+                    size={44}
                   />
                 )}
               </div>
-
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {players.map((p, idx) => (
+                  <PlayerBar
+                    key={p.userId}
+                    participant={p}
+                    isActive={idx === (game.currentPlayerIndex % players.length)}
+                    isMine={p.userId === state.myUserId}
+                    potentialBest={p.userId === activeUserId ? activePotentialBest : 0}
+                  />
+                ))}
+              </div>
               {state.lastAction && (
-                <p className="mt-2 text-xs text-stone-500 dark:text-stone-400 italic">
+                <p className="mt-2 text-xs text-stone-400 dark:text-stone-500 italic">
                   Last: {state.lastAction.username} → {categoryLabel(state.lastAction.category)} ({state.lastAction.points >= 0 ? '+' : ''}{state.lastAction.points} pts)
                 </p>
               )}
             </div>
 
-            {/* Dice */}
+            {/* Dice + controls */}
             <div className="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-5 shadow-sm">
               {activeUserId && (
                 <p className="text-sm text-stone-500 dark:text-stone-400 mb-4 text-center">
@@ -859,7 +1101,7 @@ export default function YahtzeeGame() {
                     <p className="text-xs text-stone-400 mt-2">Click dice to hold/unhold before re-rolling</p>
                   )}
                   {state.rollCount >= 3 && !state.scoredThisTurn && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 font-medium">Select a category below to score!</p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 font-medium">Select a category in the table below to score!</p>
                   )}
                 </div>
               )}
@@ -872,63 +1114,52 @@ export default function YahtzeeGame() {
               )}
             </div>
 
-            {/* Scorecard tabs */}
+            {/* Combined scorecard table */}
             <div className="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 shadow-sm overflow-hidden">
-              {/* Tab header */}
-              <div className="flex border-b border-stone-100 dark:border-stone-700 overflow-x-auto">
-                {players.map(p => {
-                  const isTab = scorecardTab === null
-                    ? p.userId === state.myUserId
-                    : p.userId === scorecardTab
-                  return (
-                    <button
-                      key={p.userId}
-                      onClick={() => setScorecardTab(p.userId === state.myUserId ? null : p.userId)}
-                      className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors border-b-2 ${
-                        isTab
-                          ? 'border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20'
-                          : 'border-transparent text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200'
-                      }`}
-                    >
-                      <Avatar username={p.username} avatarUrl={p.avatarUrl} size="sm" />
-                      {p.userId === state.myUserId ? 'You' : p.username}
-                      <span className="text-stone-400 dark:text-stone-500 font-normal">
-                        {p.scoreCard?.grandTotal ?? 0}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Scorecard body */}
-              <div className="p-3">
-                {viewedPlayer && (
-                  <ScoreCard
-                    sc={viewedPlayer.scoreCard ?? {}}
-                    potentialScores={viewedPlayer.userId === state.myUserId ? potentialScores : {}}
-                    isActivePlayer={isMyTurn && viewedPlayer.userId === state.myUserId}
-                    rollCount={state.rollCount}
-                    onSelect={handleSelectScore}
-                  />
-                )}
-              </div>
+              <CombinedScoreTable
+                players={players}
+                activeUserId={activeUserId}
+                myUserId={state.myUserId}
+                potentialScores={potentialScores}
+                rollCount={state.rollCount}
+                onSelect={handleSelectScore}
+                recentlyScored={state.recentlyScored}
+              />
             </div>
+
+            {/* Watchers */}
+            {game.participants.some(p => p.role === 'watcher') && (
+              <div className="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-3 shadow-sm">
+                <h3 className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider mb-2">Watching</h3>
+                <div className="flex gap-3 flex-wrap">
+                  {game.participants.filter(p => p.role === 'watcher').map(p => (
+                    <div key={p.userId} className="flex items-center gap-1.5">
+                      <Avatar username={p.username} avatarUrl={p.avatarUrl} size="sm" />
+                      <span className="text-xs text-stone-500 dark:text-stone-400">{p.username}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Right — watchers panel */}
-          {game.participants.some(p => p.role === 'watcher') && (
-            <div className="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-4 shadow-sm h-fit">
-              <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-3">Watching</h3>
-              <div className="space-y-2">
-                {game.participants.filter(p => p.role === 'watcher').map(p => (
-                  <div key={p.userId} className="flex items-center gap-2">
-                    <Avatar username={p.username} avatarUrl={p.avatarUrl} size="sm" />
-                    <span className="text-sm text-stone-600 dark:text-stone-300">{p.username}</span>
-                  </div>
-                ))}
-              </div>
+          {/* Right — chat */}
+          <div className={`bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 shadow-sm flex flex-col overflow-hidden ${showChat ? '' : 'hidden md:flex'}`}
+            style={{ height: '600px' }}>
+            <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-700 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-stone-600 dark:text-stone-400">Chat</h2>
+              <button className="text-stone-400 md:hidden" onClick={() => setShowChat(false)}>✕</button>
             </div>
-          )}
+            <div className="flex-1 min-h-0">
+              <ChatPanel
+                messages={state.chat}
+                onSend={handleChat}
+                disabled={game.status === 3}
+                showSystem={showSystemMessages}
+                onToggleSystem={() => setShowSystemMessages(s => !s)}
+              />
+            </div>
+          </div>
         </div>
       )}
 

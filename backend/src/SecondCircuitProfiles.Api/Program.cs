@@ -47,6 +47,7 @@ builder.Services.AddSingleton<IRuleService, RuleService>();
 builder.Services.AddSingleton<IAcademyService, AcademyService>();
 builder.Services.AddSingleton<INotificationService, NotificationService>();
 builder.Services.AddSingleton<IApplicationService, ApplicationService>();
+builder.Services.AddSingleton<IGameStatsService, GameStatsService>();
 builder.Services.AddHostedService<PigCleanupService>();
 builder.Services.AddHostedService<YahtzeeCleanupService>();
 

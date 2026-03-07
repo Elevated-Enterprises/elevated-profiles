@@ -34,6 +34,7 @@ public class MongoDbContext
     public IMongoCollection<ApplicationSubmissionHistory> ApplicationSubmissionHistory { get; }
     public IMongoCollection<Notification> Notifications { get; }
     public IMongoCollection<YahtzeeGame> YahtzeeGames { get; }
+    public IMongoCollection<GameStats> GameStats { get; }
 
     public MongoDbContext(IOptions<MongoDbSettings> settings)
     {
@@ -67,6 +68,7 @@ public class MongoDbContext
         ApplicationSubmissionHistory = database.GetCollection<ApplicationSubmissionHistory>("application_submission_history");
         Notifications = database.GetCollection<Notification>("notifications");
         YahtzeeGames = database.GetCollection<YahtzeeGame>("yahtzee_games");
+        GameStats = database.GetCollection<GameStats>("game_stats");
 
         EnsureIndexes();
     }
@@ -243,6 +245,18 @@ public class MongoDbContext
                 Builders<YahtzeeGame>.IndexKeys.Ascending(g => g.Status)),
             new CreateIndexModel<YahtzeeGame>(
                 Builders<YahtzeeGame>.IndexKeys.Descending(g => g.LastActivity))
+        ]);
+
+        GameStats.Indexes.CreateMany([
+            new CreateIndexModel<GameStats>(
+                Builders<GameStats>.IndexKeys
+                    .Ascending(s => s.UserId)
+                    .Ascending(s => s.GameType),
+                new CreateIndexOptions { Unique = true }),
+            new CreateIndexModel<GameStats>(
+                Builders<GameStats>.IndexKeys
+                    .Ascending(s => s.GameType)
+                    .Descending(s => s.GamesWon))
         ]);
 
         Notifications.Indexes.CreateMany([

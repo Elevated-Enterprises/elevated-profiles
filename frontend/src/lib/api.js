@@ -171,6 +171,8 @@ export const getOpenPigGames = (page = 1, pageSize = 20) => api.get('/api/pig', 
 export const createYahtzeeGame = (customName) => api.post('/api/yahtzee', { customName: customName || null })
 export const getOpenYahtzeeGames = (page = 1, pageSize = 20) => api.get('/api/yahtzee', { params: { page, pageSize } })
 
+export const getGameLeaderboard = (type, limit = 20) => api.get('/api/stats/games', { params: { type, limit } })
+
 // ── Community Rules ────────────────────────────────────────────────────────────
 export const getRules = () => api.get('/api/rules')
 export const getRuleById = (id) => api.get(`/api/rules/${id}`)

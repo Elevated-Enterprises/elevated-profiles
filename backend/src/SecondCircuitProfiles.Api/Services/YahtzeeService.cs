@@ -10,9 +10,10 @@ namespace SecondCircuitProfiles.Api.Services;
 public class YahtzeeService(
     MongoDbContext db,
     IHubContext<YahtzeeHub> hub,
-    ILogger<YahtzeeService> logger) : IYahtzeeService
+    ILogger<YahtzeeService> logger,
+    IGameStatsService gameStatsService) : IYahtzeeService
 {
-    private const int MaxActivePlayers = 6;
+    private const int MaxActivePlayers = 4;
     private const int IdleTimeoutSeconds = 90;
     private const int DisconnectTimeoutSeconds = 30;
     private const int PlayAgainTimeoutSeconds = 60;
@@ -742,6 +743,8 @@ public class YahtzeeService(
             .ToList();
 
         await hub.Clients.Group(GameGroup(slug)).SendAsync("GameFinished", new { rankings });
+
+        await RecordYahtzeeStatsAsync(game);
     }
 
     // ── Idle Timer ────────────────────────────────────────────────────────────
@@ -892,6 +895,15 @@ public class YahtzeeService(
             return;
         }
 
+        // Promote connected watchers to players (up to MaxActivePlayers)
+        var currentPlayerCount = game.Participants.Count(p => p.Role == "player");
+        foreach (var p in game.Participants.Where(p => p.Role == "watcher" && p.IsConnected))
+        {
+            if (currentPlayerCount >= MaxActivePlayers) break;
+            p.Role = "player";
+            currentPlayerCount++;
+        }
+
         // Reset for a new round
         foreach (var p in game.Participants.Where(p => p.Role == "player"))
             p.ScoreCard = new YahtzeeScoreCard();
@@ -912,6 +924,39 @@ public class YahtzeeService(
 
         if (game.CurrentActiveUserId is { } firstPlayer)
             StartIdleTimer(game, slug, firstPlayer);
+    }
+
+    // ── Chat ──────────────────────────────────────────────────────────────────
+
+    public async Task SendChatAsync(string slug, string userId, string username, string text)
+    {
+        if (!_games.TryGetValue(slug, out var game)) return;
+        if (game.Status == YahtzeeGameStatus.Closed) return;
+
+        var trimmed = text.Trim();
+        if (string.IsNullOrEmpty(trimmed)) return;
+        if (trimmed.Length > 500) trimmed = trimmed[..500];
+
+        var participant = game.GetParticipant(userId);
+        var role = participant?.Role ?? "watcher";
+
+        await hub.Clients.Group(GameGroup(slug)).SendAsync("ChatMessage",
+            new { userId, username, role, text = trimmed, timestamp = DateTime.UtcNow, isSystem = false });
+    }
+
+    // ── Stats ─────────────────────────────────────────────────────────────────
+
+    private async Task RecordYahtzeeStatsAsync(YahtzeeGame game)
+    {
+        var players = game.Players;
+        if (players.Count < 2) return;
+
+        var winner = players.OrderByDescending(p => p.ScoreCard.GrandTotal).First();
+        var results = players.Select(p =>
+            new GamePlayerResult(p.UserId, p.Username, p.UserSlug, p.UserId == winner.UserId));
+
+        try { await gameStatsService.RecordGameAsync("yahtzee", results, hadBots: false); }
+        catch (Exception ex) { logger.LogError(ex, "Failed to record yahtzee game stats."); }
     }
 
     // ── Cleanup ───────────────────────────────────────────────────────────────

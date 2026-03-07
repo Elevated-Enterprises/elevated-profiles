@@ -10,7 +10,8 @@ namespace SecondCircuitProfiles.Api.Services;
 public class PigService(
     MongoDbContext db,
     IHubContext<PigHub> hub,
-    ILogger<PigService> logger) : IPigService
+    ILogger<PigService> logger,
+    IGameStatsService gameStatsService) : IPigService
 {
     private const int MaxActivePlayers = 6;
     private const int WinScore = 100;
@@ -439,6 +440,8 @@ public class PigService(
                 var finalScores = game.Participants.ToDictionary(p => p.UserId, p => p.Score);
                 await hub.Clients.Group(GameGroup(slug)).SendAsync("GameWon",
                     new { winnerUserId = userId, winnerUsername = participant.Username, scores = finalScores, reason = "normal" });
+
+                await RecordPigStatsAsync(game, userId);
                 return;
             }
 
@@ -590,6 +593,9 @@ public class PigService(
                         var finalScores = game.Participants.ToDictionary(p => p.UserId, p => p.Score);
                         await hub.Clients.Group(GameGroup(slug)).SendAsync("GameWon",
                             new { winnerUserId = botUserId, winnerUsername = bot.Username, scores = finalScores, reason = "normal" });
+
+                        // Bot wins — record "played" for humans, no winner
+                        await RecordPigStatsAsync(game, null);
                         return;
                     }
 
@@ -831,6 +837,8 @@ public class PigService(
         {
             await hub.Clients.Group(GameGroup(slug)).SendAsync("GameWon",
                 new { winnerUserId = winner.UserId, winnerUsername = winner.Username, scores = finalScores, reason = "forfeit" });
+
+            await RecordPigStatsAsync(game, winner.IsBot ? null : winner.UserId);
         }
         else
         {
@@ -1166,6 +1174,26 @@ public class PigService(
         {
             game.Lock.Release();
         }
+    }
+
+    // ── Stats ─────────────────────────────────────────────────────────────────
+
+    private async Task RecordPigStatsAsync(PigGame game, string? winnerUserId)
+    {
+        var humanPlayers = game.Participants
+            .Where(p => p.Role == "player" && !p.IsBot)
+            .ToList();
+
+        // Need at least 2 total players (human or bot) for the game to count
+        var totalPlayers = game.Participants.Count(p => p.Role == "player");
+        if (totalPlayers < 2 || humanPlayers.Count == 0) return;
+
+        var hadBots = game.Participants.Any(p => p.IsBot);
+        var results = humanPlayers.Select(p =>
+            new GamePlayerResult(p.UserId, p.Username, p.UserSlug, p.UserId == winnerUserId));
+
+        try { await gameStatsService.RecordGameAsync("pig", results, hadBots); }
+        catch (Exception ex) { logger.LogError(ex, "Failed to record pig game stats."); }
     }
 
     // ── Cleanup ───────────────────────────────────────────────────────────────

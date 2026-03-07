@@ -15,6 +15,7 @@ import Imprint from './pages/Imprint'
 import Rules from './pages/Rules'
 import ThoughtPage from './pages/ThoughtPage'
 import LoadingSpinner from './components/LoadingSpinner'
+import Games from './pages/Games'
 import PigGameList from './pages/PigGameList'
 import PigGame from './pages/PigGame'
 import YahtzeeGameList from './pages/YahtzeeGameList'
@@ -61,6 +62,7 @@ export default function App() {
                 <Route path="/legal/rules/:id" element={<Layout><RuleDetail /></Layout>} />
                 <Route path="/" element={<Layout><Landing /></Layout>} />
                 <Route path="/profiles/:slug" element={<Layout><ProfileDetail /></Layout>} />
+                <Route path="/games" element={<Layout><Games /></Layout>} />
                 <Route path="/pig" element={<Layout><PigGameList /></Layout>} />
                 <Route path="/pig/:slug" element={<PigGame />} />
                 <Route path="/yahtzee" element={<Layout><YahtzeeGameList /></Layout>} />

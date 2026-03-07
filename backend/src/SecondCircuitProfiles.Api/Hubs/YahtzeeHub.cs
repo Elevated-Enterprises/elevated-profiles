@@ -126,4 +126,11 @@ public class YahtzeeHub(IYahtzeeService yahtzeeService, ILogger<YahtzeeHub> logg
         if (slug is null) return;
         await yahtzeeService.InitiatePlayAgainAsync(slug, UserId);
     }
+
+    public async Task SendChat(string text)
+    {
+        var slug = GameSlug;
+        if (slug is null) return;
+        await yahtzeeService.SendChatAsync(slug, UserId, Username, text);
+    }
 }

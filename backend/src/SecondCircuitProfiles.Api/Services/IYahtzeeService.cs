@@ -65,6 +65,7 @@ public interface IYahtzeeService
     Task SelectScoreAsync(string slug, string userId, string category);
     Task VotePlayAgainAsync(string slug, string userId, bool vote);
     Task InitiatePlayAgainAsync(string slug, string userId);
+    Task SendChatAsync(string slug, string userId, string username, string text);
 
     Task CleanupAbandonedGamesAsync();
 }

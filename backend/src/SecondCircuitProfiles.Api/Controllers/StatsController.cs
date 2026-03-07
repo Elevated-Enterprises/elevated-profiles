@@ -10,8 +10,19 @@ namespace SecondCircuitProfiles.Api.Controllers;
 [ApiController]
 [Route("api/stats")]
 [Produces("application/json")]
-public class StatsController(MongoDbContext db) : ControllerBase
+public class StatsController(MongoDbContext db, IGameStatsService gameStatsService) : ControllerBase
 {
+    [HttpGet("games")]
+    public async Task<IActionResult> GetGameLeaderboard([FromQuery] string type = "pig", [FromQuery] int limit = 20)
+    {
+        if (type is not ("pig" or "yahtzee"))
+            return BadRequest(new { error = "Invalid game type. Use 'pig' or 'yahtzee'." });
+
+        limit = Math.Clamp(limit, 1, 50);
+        var entries = await gameStatsService.GetLeaderboardAsync(type, limit);
+        return Ok(entries);
+    }
+
     [HttpGet]
     [ProducesResponseType<StatsResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStats()

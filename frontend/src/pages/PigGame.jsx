@@ -141,6 +141,19 @@ function reducer(state, action) {
     case 'TURN_ENDED': {
       if (!state.game) return state
       const newIndex = state.game.turnOrder.indexOf(action.nextPlayerId)
+
+      // Calculate banked points: new score minus old score for the active player
+      const prevPlayerId = state.game.turnOrder[state.game.currentPlayerIndex % state.game.turnOrder.length]
+      const prevPlayer = state.game.participants.find(p => p.userId === prevPlayerId)
+      const oldScore = prevPlayer?.score ?? 0
+      const newScore = action.scores[prevPlayerId] ?? oldScore
+      const banked = newScore - oldScore
+
+      let newChat = state.chat
+      if (action.reason === 'hold' && banked > 0 && prevPlayer) {
+        newChat = [...state.chat, systemMsg(`${prevPlayer.username} scored ${banked} points this round.`)].slice(-200)
+      }
+
       return {
         ...state,
         game: {
@@ -155,6 +168,7 @@ function reducer(state, action) {
         lastDiceValue: null,
         idleCountdown: null,
         idleCountdownMax: null,
+        chat: newChat,
       }
     }
 
@@ -414,13 +428,14 @@ function IdleCountdownRing({ seconds, maxSeconds }) {
   )
 }
 
-function ChatPanel({ messages, onSend, disabled }) {
+function ChatPanel({ messages, onSend, disabled, showSystem, onToggleSystem }) {
   const [text, setText] = useState('')
   const bottomRef = useRef(null)
+  const visible = showSystem ? messages : messages.filter(m => !m.isSystem)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [visible])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -431,11 +446,24 @@ function ChatPanel({ messages, onSend, disabled }) {
 
   return (
     <div className="flex flex-col h-full min-h-0">
+      <div className="px-3 py-1.5 border-b border-stone-100 dark:border-stone-700 flex justify-end">
+        <button
+          onClick={onToggleSystem}
+          className={`text-xs px-2 py-0.5 rounded transition-colors ${
+            showSystem
+              ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20'
+              : 'text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300'
+          }`}
+          title={showSystem ? 'Hide game events' : 'Show game events'}
+        >
+          {showSystem ? 'Events on' : 'Events off'}
+        </button>
+      </div>
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 min-h-0">
-        {messages.length === 0 && (
+        {visible.length === 0 && (
           <p className="text-xs text-stone-400 dark:text-stone-500 text-center py-4">No messages yet. Say hi!</p>
         )}
-        {messages.map((msg, i) => (
+        {visible.map((msg, i) => (
           <div key={i} className={`text-xs leading-relaxed ${msg.isSystem ? 'text-stone-400 dark:text-stone-500 italic text-center' : 'text-stone-700 dark:text-stone-300'}`}>
             {!msg.isSystem && (
               <span className="font-semibold text-stone-800 dark:text-stone-200 mr-1">{msg.username}</span>
@@ -517,6 +545,7 @@ export default function PigGame() {
   const connectionRef = useRef(null)
   const [showChat, setShowChat] = useState(true)
   const [showRules, setShowRules] = useState(false)
+  const [showSystemMessages, setShowSystemMessages] = useState(true)
 
   const isGm = state.game?.gmUserId === state.myUserId
   const myParticipant = state.game?.participants.find(p => p.userId === state.myUserId)
@@ -1016,6 +1045,8 @@ export default function PigGame() {
                 messages={state.chat}
                 onSend={handleChat}
                 disabled={game.status === 3}
+                showSystem={showSystemMessages}
+                onToggleSystem={() => setShowSystemMessages(s => !s)}
               />
             </div>
           </div>

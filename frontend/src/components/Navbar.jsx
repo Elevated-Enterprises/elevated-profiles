@@ -19,11 +19,8 @@ export default function Navbar() {
             <span className="hidden sm:inline">Second Circuit</span>
             <span className="sm:hidden">SC</span>
           </Link>
-          <Link to="/pig" className="flex items-center gap-1 sm:gap-1.5 text-sm font-semibold px-2 sm:px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-colors shrink-0">
-            🎲<span className="hidden sm:inline"> Pig</span>
-          </Link>
-          <Link to="/yahtzee" className="flex items-center gap-1 sm:gap-1.5 text-sm font-semibold px-2 sm:px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-colors shrink-0">
-            🎯<span className="hidden sm:inline"> Yahtzee</span>
+          <Link to="/games" className="flex items-center gap-1 sm:gap-1.5 text-sm font-semibold px-2 sm:px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-colors shrink-0">
+            🎲<span className="hidden sm:inline"> Games</span>
           </Link>
           <Link to="/academy" className="flex items-center gap-1 sm:gap-1.5 text-sm font-semibold px-2 sm:px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-colors shrink-0">
             🎓<span className="hidden sm:inline"> Academy</span>
