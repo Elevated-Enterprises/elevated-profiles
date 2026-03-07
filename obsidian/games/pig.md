@@ -48,11 +48,12 @@ The GM has additional controls in the lobby:
 
 ## Bots
 
-The game includes AI bots that play automatically. Bots use a simple strategy:
-- If the current turn score is 20 or more, hold.
-- Otherwise, roll.
+The game includes AI bots that play automatically. Bots use an adaptive strategy based on their position relative to the leading human player:
 
-Bots act instantly on their turn and never disconnect.
+- **Base target: 20** — hold once the current turn score reaches 20.
+- **If ahead by more than 20 points** — become conservative, target 15.
+- **If behind by more than 20 points** — become aggressive, target 25.
+- A bot always holds immediately if it can win with the current turn score.
 
 ---
 
@@ -60,17 +61,17 @@ Bots act instantly on their turn and never disconnect.
 
 To keep games moving:
 
-- If the active player is **idle for 60 seconds**, a countdown timer appears. When it reaches zero, the turn is automatically ended (Hold is forced).
-- If the active player **disconnects**, there is a **30-second reconnect window**. If they reconnect in time, the game continues. If not, their turn is skipped automatically.
+- If the active player is **idle for 60 seconds**, a countdown timer appears on screen. When it reaches zero, the turn is **skipped** — the current turn score is lost and play passes to the next player. A second idle skip in the same game results in the player being **kicked** from the room.
+- If the active player **disconnects**, there is a **30-second reconnect window**. If they reconnect in time, the game continues. If not, their turn is skipped (same as an idle skip, and counts toward the two-skip kick limit).
 - Watchers who disconnect are removed from the room silently.
 
 ---
 
 ## After the Game
 
-When the game ends, the GM can propose a **Play Again** vote. All players vote yes or no. If the majority votes yes, a new game starts immediately with the same group (watchers who are still connected get promoted to players first, up to the 6-player limit). If the GM votes no, the room closes immediately.
+When the game ends, the GM can propose a **Play Again** vote. All players vote yes or no. If the majority votes yes, players who voted no (or did not vote) are removed from the room. The remaining players return to the **Lobby** with scores reset — the GM must start a fresh game. Watchers who voted yes are promoted to players (up to the 6-player limit). If the GM votes no, the room closes immediately.
 
-The Play Again vote has a **60-second timeout** — any player who does not vote in time is counted as absent.
+The Play Again vote has a **60-second timeout** — any player who does not vote in time is counted as absent and removed if Play Again proceeds.
 
 ---
 

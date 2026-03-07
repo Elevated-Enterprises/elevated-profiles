@@ -2,7 +2,7 @@
 
 This document describes how multiplayer games are built on the Second Circuit Profiles platform. It is the reference for developers adding new games.
 
-All games follow the same architectural pattern. The canonical reference implementation is **Pig Dice**; Yahtzee was the second game and confirmed the pattern works across different game types.
+All games follow the same architectural pattern. The canonical reference implementations are **Pig Dice** (first game, includes bots) and **Yahtzee** (second game, confirmed the pattern works across different game types).
 
 ---
 
@@ -86,7 +86,7 @@ public class {Name}Game
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-    // Transient (not persisted)
+    // Transient (not persisted) — name them however you like
     [BsonIgnore] public SemaphoreSlim Lock { get; } = new(1, 1);
     [BsonIgnore] public CancellationTokenSource? IdleCts { get; set; }
     [BsonIgnore] public CancellationTokenSource? DisconnectCts { get; set; }
@@ -100,7 +100,9 @@ public class {Name}Game
 }
 ```
 
-**Important:** `TurnOrder` is game-specific. Pig maintains an explicit `List<string> TurnOrder`; Yahtzee derives turn order from `Participants.Where(p => p.Role == "player")` at runtime. Choose the approach that fits your game's rules.
+Note: CTS property names are not standardised across games — Pig uses `IdleTimerCts`, `DisconnectTimerCts`, `PlayAgainTimerCts`; Yahtzee uses `IdleCts`, `DisconnectCts`, `PlayAgainCts`. Either convention is fine for new games.
+
+**TurnOrder approach:** Pig maintains an explicit `List<string> TurnOrder`; Yahtzee derives turn order at runtime from `Participants.Where(p => p.Role == "player")`. Choose the approach that fits your game's rules.
 
 ---
 
@@ -185,7 +187,7 @@ try { ... }
 finally { game.Lock.Release(); }
 ```
 
-**Persistence** — after every state change:
+**Persistence** — after every state change. Filter by `Slug`, not by `Id`:
 
 ```csharp
 private async Task PersistAsync({Name}Game game)
@@ -195,8 +197,6 @@ private async Task PersistAsync({Name}Game game)
     await db.{Name}Games.ReplaceOneAsync(filter, game, new ReplaceOptions { IsUpsert = true });
 }
 ```
-
-Note: filter by `Slug`, not by `Id`. This is intentional — the slug is the stable external identifier.
 
 **Crash recovery** via `GetOrLoadGameAsync`:
 
@@ -262,7 +262,7 @@ public async Task<List<{Name}GameSummaryDto>> GetOpenGamesAsync(int page, int pa
 }
 ```
 
-**Broadcast open games** whenever the visible list might change:
+**Broadcast open games** whenever the visible list might change. Call `BroadcastOpenGames()` after: game created, new participant joined (not reconnect), game started, game finished/closed/cancelled.
 
 ```csharp
 private void BroadcastOpenGames()
@@ -276,9 +276,7 @@ private void BroadcastOpenGames()
 }
 ```
 
-Call `BroadcastOpenGames()` on: game created, game started, player joined, game finished/closed/cancelled.
-
-**Idle timer** (broadcast countdown to entire game group):
+**Idle timer** (broadcast countdown to the entire game group):
 
 ```csharp
 private void StartIdleTimer({Name}Game game, string slug, string expectedUserId)
@@ -307,6 +305,10 @@ private async Task RunIdleTimerAsync(string slug, string expectedUserId, Cancell
 
 The `IdleCountdown` event is sent to the **whole group** (all players and watchers), not just the active player.
 
+On idle expiry, **auto-advance the turn**. The exact action is game-specific:
+- **Pig** — skip the active player's turn (turn score lost); track `ConsecutiveSkips`. Two skips in a row → kick the player.
+- **Yahtzee** — auto-roll if not yet rolled, then auto-select the lowest-scoring available category.
+
 **Recording stats** at game end via `IGameStatsService`:
 
 ```csharp
@@ -331,8 +333,12 @@ private async Task RecordStatsAsync({Name}Game game)
 4. If GM votes no → immediately close
 5. If all players voted → resolve
 6. On timeout → resolve with whatever votes exist
-7. Majority yes → reset all score state, promote connected watchers to players (up to `MaxActivePlayers`), broadcast `PlayAgainResult`
-8. Majority no (or GM veto) → set status to `Closed`, broadcast `GameClosed`, remove from `_games`
+7. **Majority yes:** behaviour differs by game:
+   - **Pig** → set status back to `Lobby`; remove no-voters and non-voters; reset scores; GM must start again
+   - **Yahtzee** → set status to `InProgress` directly; reset scorecards; start idle timer immediately
+8. **Majority no (or GM veto)** → set status to `Closed`, broadcast `GameClosed`, remove from `_games`
+
+On Play Again (yes), promote connected watchers who voted yes to players (up to `MaxActivePlayers`).
 
 **Cleanup** (runs every 5 minutes, evicts after 12 hours idle):
 
@@ -430,11 +436,13 @@ await {Name}Games.Indexes.CreateManyAsync([
 
 ### Controller (`Controllers/{Name}Controller.cs`)
 
+Inject the **interface** (`I{Name}Service`), not the concrete class:
+
 ```csharp
 [ApiController]
 [Route("api/{prefix}")]
 [Authorize]
-public class {Name}Controller({Name}Service {name}Service, IUserService userService) : ControllerBase
+public class {Name}Controller(I{Name}Service {name}Service, IUserService userService) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     private string Username => User.FindFirstValue("discord_username") ?? "Unknown";
@@ -462,7 +470,8 @@ public class {Name}Controller({Name}Service {name}Service, IUserService userServ
     public async Task<IActionResult> GetOpenGames([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         if (page < 1) page = 1;
-        if (pageSize is < 1 or > 50) pageSize = Math.Clamp(pageSize, 1, 50);
+        if (pageSize < 1) pageSize = 1;
+        if (pageSize > 50) pageSize = 50;
 
         var games = await {name}Service.GetOpenGamesAsync(page, pageSize);
         var total = await {name}Service.GetOpenGamesCountAsync();
@@ -488,7 +497,7 @@ builder.Services.AddHostedService<{Name}CleanupService>();
 if (!string.IsNullOrEmpty(accessToken) && (
     path.StartsWithSegments("/hubs/pig") ||
     path.StartsWithSegments("/hubs/yahtzee") ||
-    path.StartsWithSegments("/hubs/{prefix}")))   // add this line
+    path.StartsWithSegments("/hubs/{prefix}")))   // ← add this line
     context.Token = accessToken;
 
 // 3. Hub mapping (near existing hub mappings)
@@ -503,14 +512,14 @@ app.MapHub<{Name}Hub>("/hubs/{prefix}");
 
 ### `frontend/src/lib/api.js`
 
-Add alongside the other game API functions:
+Add alongside the other game API functions. Do **not** add `.then(r => r.data)` — the existing game functions return the raw axios response, and the frontend accesses `res.data.slug`:
 
 ```js
 export const create{Name}Game = (customName) =>
-    api.post('/api/{prefix}', { customName }).then(r => r.data);
+    api.post('/api/{prefix}', { customName: customName || null })
 
 export const getOpen{Name}Games = (page = 1, pageSize = 20) =>
-    api.get('/api/{prefix}', { params: { page, pageSize } }).then(r => r.data);
+    api.get('/api/{prefix}', { params: { page, pageSize } })
 ```
 
 ### `{Name}GameList.jsx`
@@ -518,7 +527,7 @@ export const getOpen{Name}Games = (page = 1, pageSize = 20) =>
 Copy `PigGameList.jsx`. Change:
 - SignalR URL: `/hubs/{prefix}?mode=list&access_token=${token}`
 - Import `create{Name}Game`
-- Navigation target: `/{prefix}/${res.slug}`
+- Navigate after creation: `navigate(\`/{prefix}/${res.data.slug}\`)`
 - Display text
 
 ### `{Name}Game.jsx`
@@ -527,28 +536,9 @@ Copy `PigGame.jsx`. The reducer action types and state shape change per game —
 - `useReducer` pattern with a `dispatch`-based state machine
 - `phase` as the top-level discriminant: `connecting → lobby → in-progress → finished → play-again → closed | error`
 - SignalR URL: `/hubs/{prefix}?gameSlug={slug}&access_token=${token}`
-- `Avatar` helper (deterministic gradient by username)
+- `Avatar` helper (deterministic gradient by username hash)
 - `ParticipantCard` structure
-- `IdleCountdownRing` — SVG ring countdown shown to all players. Needs `idleCountdown` (current seconds) and `idleCountdownMax` (captured once when countdown starts, i.e. when `state.idleCountdown === null` before the first tick). Reset both to `null` on turn transition. Ring goes amber → red + pulsing below 33%.
-
-### `App.jsx`
-
-```jsx
-import {Name}GameList from './pages/{Name}GameList';
-import {Name}Game from './pages/{Name}Game';
-
-// inside <Routes>:
-<Route path="/{prefix}" element={<{Name}GameList />} />
-<Route path="/{prefix}/:slug" element={<ProtectedRoute><{Name}Game /></ProtectedRoute>} />
-```
-
-### `Navbar.jsx`
-
-Add a nav link next to the existing game links:
-
-```jsx
-<NavLink to="/{prefix}">{Display Name}</NavLink>
-```
+- `IdleCountdownRing` — SVG ring countdown shown to all players. Needs `idleCountdown` (current seconds) and `idleCountdownMax` (captured once at first tick, when `state.idleCountdown === null`). Reset both to `null` on turn transition. Ring goes amber → red + pulsing below 33%.
 
 ---
 
@@ -570,4 +560,5 @@ Add a nav link next to the existing game links:
 - Win condition
 - Idle timeout duration (Pig: 60 s, Yahtzee: 90 s)
 - Does the game need bots? (Pig has them; Yahtzee does not)
-- Does Play Again voting apply?
+- Does Play Again voting apply? (default: yes)
+- On Play Again yes: return to Lobby (like Pig) or restart directly (like Yahtzee)?

@@ -14,7 +14,7 @@ Fill your scorecard with the highest possible total. The player with the highest
 
 On your turn you have up to **three rolls**:
 
-1. **First roll** — all five dice are rolled automatically. Any held dice carry over, but on the first roll all dice are always re-rolled regardless.
+1. **First roll** — all five dice are rolled. Holds from a previous roll do not carry over to the first roll; all dice are always re-rolled on the first roll of a turn.
 2. **Between rolls** — click any dice you want to keep (hold them), then roll again.
 3. **Third roll** — after your third roll you must select a scoring category.
 
@@ -57,9 +57,9 @@ If you roll a Yahtzee and you have already scored 50 in the Yahtzee category, yo
 
 When you roll a bonus Yahtzee (all five dice matching), special joker rules apply to where you may score it:
 
-1. If the matching upper section category (e.g. Fives) is unfilled, you **must** score it there.
-2. If that category is already filled, you may score it in any **lower section** category (scoring the fixed value, e.g. Full House = 25 even if the dice would not normally qualify).
-3. If all lower section categories are filled, you may score it in any **upper section** category.
+1. If the matching upper section category (e.g. Fives for five 5s) is unfilled, you **must** score it there.
+2. If that category is already filled, you may score it in any **lower section** category — and you receive the fixed category value (e.g. Full House = 25) even if the dice would not normally qualify.
+3. If all lower section categories are filled, you may score it in any remaining **upper section** category.
 
 ### End of Game
 
@@ -87,14 +87,14 @@ The game ends when all players have filled every category on their scorecard. Ra
 To keep games moving:
 
 - If the active player is **idle for 90 seconds**, a countdown timer appears on screen. When it reaches zero, the game automatically selects the **lowest-scoring available category** and advances the turn.
-- If the active player **disconnects**, there is a **30-second reconnect window**. If they reconnect, the game continues. If not, their turn is auto-completed (worst available category is selected for them).
+- If the active player **disconnects**, there is a **30-second reconnect window**. If they reconnect, the game continues. If not, their turn is auto-completed (the worst available category is selected for them).
 - Watchers who disconnect are removed from the room silently.
 
 ---
 
 ## After the Game
 
-When all scorecards are complete, the GM can propose a **Play Again** vote. All players vote yes or no. A majority yes resets all scorecards and starts a new game immediately. Watchers who are still connected get promoted to players first (up to the 4-player limit). If the GM votes no, the room closes immediately.
+When all scorecards are complete, the GM can propose a **Play Again** vote. All players vote yes or no. A majority yes resets all scorecards and starts a new game immediately — unlike Pig, Yahtzee skips the lobby and goes straight back into play. Watchers who are still connected get promoted to players first (up to the 4-player limit). If the GM votes no, the room closes immediately.
 
 The Play Again vote has a **60-second timeout**.
 
