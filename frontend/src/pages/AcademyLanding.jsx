@@ -91,8 +91,8 @@ export default function AcademyLanding() {
 
       {recentArticles.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold text-stone-800 dark:text-stone-100 mb-4">Recently Added</h2>
-          <ul className="space-y-3">
+          <h2 className="text-lg font-semibold text-stone-800 dark:text-stone-100 mb-4 text-center">Recently Added</h2>
+          <ul className="max-w-lg mx-auto space-y-3">
             {recentArticles.map((article) => (
               <li key={article.path}>
                 <Link

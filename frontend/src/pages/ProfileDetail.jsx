@@ -354,6 +354,14 @@ export default function ProfileDetail() {
               ✏ Banner
             </button>
           )}
+          {user.profileUpdatedAt && (
+            <div
+              className="absolute bottom-2 right-2 text-xs text-white/70 bg-black/20 rounded px-1.5 py-0.5 backdrop-blur-sm pointer-events-none"
+              title={new Date(user.profileUpdatedAt).toLocaleString()}
+            >
+              Profile updated {formatRelativeTime(user.profileUpdatedAt)}
+            </div>
+          )}
         </div>
         <div className="px-6 pb-6">
           <div className="-mt-20 mb-4 flex items-end gap-4">
@@ -395,6 +403,14 @@ export default function ProfileDetail() {
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-bold text-stone-800 dark:text-stone-100 truncate">{displayName}</h1>
                 <VisibilityBadge visibility={user.visibility} />
+                {isOwn && (
+                  <button
+                    onClick={handleLoadProfileInsights}
+                    className="text-xs text-stone-400 hover:text-amber-600 dark:hover:text-amber-400 underline transition-colors"
+                  >
+                    {showProfileInsights ? 'Hide insights' : 'Insights'}
+                  </button>
+                )}
               </div>
               {user.alternativeName && (
                 <p className="text-sm text-stone-400 dark:text-stone-500">{user.discordUsername}</p>
@@ -466,6 +482,43 @@ export default function ProfileDetail() {
             </div>
           </div>
 
+          {/* Status / Thought Bubble */}
+          {(isOwn || currentStatus) && (
+            <div className="mb-4 flex items-start gap-2">
+              <span className="text-2xl flex-shrink-0 leading-none mt-0.5">💭</span>
+              <div className="flex-1 min-w-0">
+                {isOwn ? (
+                  statusEditing ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        autoFocus
+                        value={statusInput}
+                        onChange={(e) => setStatusInput(e.target.value.slice(0, 60))}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSaveStatus(); if (e.key === 'Escape') setStatusEditing(false) }}
+                        placeholder="What's on your mind? (max 60 chars)"
+                        className="flex-1 text-sm border border-stone-200 dark:border-stone-600 rounded-lg px-3 py-1.5 bg-white dark:bg-stone-700 text-stone-700 dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                      />
+                      <span className="text-xs text-stone-400 dark:text-stone-500 flex-shrink-0">{statusInput.length}/60</span>
+                      <button onClick={handleSaveStatus} disabled={statusSaving} className="text-xs text-amber-600 hover:text-amber-700 font-medium disabled:opacity-50">
+                        {statusSaving ? '…' : 'Save'}
+                      </button>
+                      <button onClick={() => setStatusEditing(false)} className="text-xs text-stone-400 hover:text-stone-600">Cancel</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setStatusEditing(true)}
+                      className="text-sm text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 italic"
+                    >
+                      {currentStatus ? `"${currentStatus}"` : '+ Set a status…'}
+                    </button>
+                  )
+                ) : (
+                  <p className="text-sm text-stone-500 dark:text-stone-400 italic">"{currentStatus}"</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Blocked banner (admin view) */}
           {user.isBlocked && (
             <div className="mb-4 px-4 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-400 flex items-center justify-between gap-3">
@@ -520,11 +573,6 @@ export default function ProfileDetail() {
             {user.lastSeenAt && (
               <span className="text-stone-400 dark:text-stone-500" title={new Date(user.lastSeenAt).toLocaleString()}>
                 Last online {formatRelativeTime(user.lastSeenAt)}
-              </span>
-            )}
-            {user.profileUpdatedAt && (
-              <span className="text-stone-400 dark:text-stone-500" title={new Date(user.profileUpdatedAt).toLocaleString()}>
-                Profile updated {formatRelativeTime(user.profileUpdatedAt)}
               </span>
             )}
           </div>
@@ -613,25 +661,15 @@ export default function ProfileDetail() {
             </div>
           )}
 
-          {/* Profile visit stats + insights — only visible to the owner */}
-          {isOwn && (
+          {/* Profile visit stats — only visible to the owner */}
+          {isOwn && (user.visitCount > 0 || user.uniqueVisitorCount > 0) && (
             <div className="mb-4 flex gap-4 text-xs text-stone-400 dark:text-stone-500 items-center flex-wrap">
-              {(user.visitCount > 0 || user.uniqueVisitorCount > 0) && (
-                <>
-                  <span title="Total visits to your profile">
-                    👁 {user.visitCount ?? 0} visit{user.visitCount !== 1 ? 's' : ''}
-                  </span>
-                  <span title="Unique members who visited your profile">
-                    👤 {user.uniqueVisitorCount ?? 0} unique visitor{user.uniqueVisitorCount !== 1 ? 's' : ''}
-                  </span>
-                </>
-              )}
-              <button
-                onClick={handleLoadProfileInsights}
-                className="text-xs text-stone-400 hover:text-amber-600 dark:hover:text-amber-400 underline transition-colors"
-              >
-                {showProfileInsights ? 'Hide insights' : 'Insights'}
-              </button>
+              <span title="Total visits to your profile">
+                👁 {user.visitCount ?? 0} visit{user.visitCount !== 1 ? 's' : ''}
+              </span>
+              <span title="Unique members who visited your profile">
+                👤 {user.uniqueVisitorCount ?? 0} unique visitor{user.uniqueVisitorCount !== 1 ? 's' : ''}
+              </span>
             </div>
           )}
 
@@ -686,37 +724,6 @@ export default function ProfileDetail() {
             </div>
           )}
 
-          {/* Status */}
-          {isOwn ? (
-            <div className="mb-4">
-              {statusEditing ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    autoFocus
-                    value={statusInput}
-                    onChange={(e) => setStatusInput(e.target.value.slice(0, 60))}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleSaveStatus(); if (e.key === 'Escape') setStatusEditing(false) }}
-                    placeholder="What's on your mind? (max 60 chars)"
-                    className="flex-1 text-sm border border-stone-200 dark:border-stone-600 rounded-lg px-3 py-1.5 bg-white dark:bg-stone-700 text-stone-700 dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-amber-300"
-                  />
-                  <span className="text-xs text-stone-400 dark:text-stone-500 flex-shrink-0">{statusInput.length}/60</span>
-                  <button onClick={handleSaveStatus} disabled={statusSaving} className="text-xs text-amber-600 hover:text-amber-700 font-medium disabled:opacity-50">
-                    {statusSaving ? '…' : 'Save'}
-                  </button>
-                  <button onClick={() => setStatusEditing(false)} className="text-xs text-stone-400 hover:text-stone-600">Cancel</button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setStatusEditing(true)}
-                  className="text-sm text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 italic"
-                >
-                  {currentStatus ? `"${currentStatus}"` : '+ Set a status…'}
-                </button>
-              )}
-            </div>
-          ) : currentStatus ? (
-            <p className="mb-4 text-sm text-stone-500 dark:text-stone-400 italic">"{currentStatus}"</p>
-          ) : null}
 
           {/* Ambassador banner */}
           {user.ambassadorCommunity && (
@@ -746,72 +753,75 @@ export default function ProfileDetail() {
             </div>
           )}
 
-          {/* Skills */}
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">Skills</span>
-              {canEdit && <SectionEditButton onClick={() => setShowSkills(true)} />}
-            </div>
-            {user.skills?.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {user.skills.map((skill) => (
-                  <span
-                    key={skill.id}
-                    className="bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs px-3 py-1 rounded-full border border-amber-200 dark:border-amber-800"
-                  >
-                    {skill.name}
-                  </span>
-                ))}
-              </div>
-            ) : canEdit ? (
-              <p className="text-xs text-stone-400 dark:text-stone-500">No skills added yet.</p>
-            ) : null}
-          </div>
-
-          {/* LLM Experiences */}
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">LLM Experience</span>
-              {canEdit && <SectionEditButton onClick={() => setShowLLM(true)} />}
-            </div>
-            {user.llmExperiences?.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {user.llmExperiences.map((exp) => (
-                  <span
-                    key={exp.llmProviderId}
-                    className="bg-stone-50 dark:bg-stone-700 text-stone-600 dark:text-stone-300 text-xs px-3 py-1 rounded-full border border-stone-200 dark:border-stone-600"
-                  >
-                    {exp.llmProviderName}: {EXPERIENCE_LABELS[exp.experienceLevel]}
-                  </span>
-                ))}
-              </div>
-            ) : canEdit ? (
-              <p className="text-xs text-stone-400 dark:text-stone-500">No LLM experience added yet.</p>
-            ) : null}
-          </div>
-
-          {/* Languages */}
-          {(canEdit || user.languages?.length > 0) && (
-            <div className="mb-4">
+          {/* Skills / LLM Experience / Languages — three columns */}
+          <div className="mb-4 grid grid-cols-3 gap-4">
+            {/* Skills */}
+            <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">Languages</span>
-                {canEdit && <SectionEditButton onClick={() => setShowLanguages(true)} />}
+                <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">Skills</span>
+                {canEdit && <SectionEditButton onClick={() => setShowSkills(true)} />}
               </div>
-              <div className="flex flex-wrap gap-2">
-                <span className="bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 text-xs px-3 py-1 rounded-full border border-sky-200 dark:border-sky-800">
-                  English
-                </span>
-                {user.languages?.map((lang) => (
-                  <span
-                    key={lang}
-                    className="bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 text-xs px-3 py-1 rounded-full border border-sky-200 dark:border-sky-800"
-                  >
-                    {lang}
-                  </span>
-                ))}
-              </div>
+              {user.skills?.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {user.skills.map((skill) => (
+                    <span
+                      key={skill.id}
+                      className="bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800"
+                    >
+                      {skill.name}
+                    </span>
+                  ))}
+                </div>
+              ) : canEdit ? (
+                <p className="text-xs text-stone-400 dark:text-stone-500">No skills added yet.</p>
+              ) : null}
             </div>
-          )}
+
+            {/* LLM Experience */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">LLM Experience</span>
+                {canEdit && <SectionEditButton onClick={() => setShowLLM(true)} />}
+              </div>
+              {user.llmExperiences?.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {user.llmExperiences.map((exp) => (
+                    <span
+                      key={exp.llmProviderId}
+                      className="bg-stone-50 dark:bg-stone-700 text-stone-600 dark:text-stone-300 text-xs px-2.5 py-1 rounded-full border border-stone-200 dark:border-stone-600"
+                    >
+                      {exp.llmProviderName}: {EXPERIENCE_LABELS[exp.experienceLevel]}
+                    </span>
+                  ))}
+                </div>
+              ) : canEdit ? (
+                <p className="text-xs text-stone-400 dark:text-stone-500">No LLM experience added yet.</p>
+              ) : null}
+            </div>
+
+            {/* Languages */}
+            {(canEdit || user.languages?.length > 0) ? (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide">Languages</span>
+                  {canEdit && <SectionEditButton onClick={() => setShowLanguages(true)} />}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 text-xs px-2.5 py-1 rounded-full border border-sky-200 dark:border-sky-800">
+                    English
+                  </span>
+                  {user.languages?.map((lang) => (
+                    <span
+                      key={lang}
+                      className="bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 text-xs px-2.5 py-1 rounded-full border border-sky-200 dark:border-sky-800"
+                    >
+                      {lang}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : <div />}
+          </div>
 
           {/* Bio — collapsible */}
           {(canEdit || user.bio) && (
