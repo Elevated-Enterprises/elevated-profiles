@@ -1,0 +1,39 @@
+services:
+  frontend:
+    image: ghcr.io/YOUR_ORG/YOUR_REPO-frontend:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    image: ghcr.io/YOUR_ORG/YOUR_REPO-backend:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - MongoDB__ConnectionString=mongodb://mongo:27017
+      - MongoDB__DatabaseName=profiles
+      - Discord__ClientId=${DISCORD_CLIENT_ID}
+      - Discord__ClientSecret=${DISCORD_CLIENT_SECRET}
+      - Discord__GuildId=${DISCORD_GUILD_ID}
+      - Discord__RedirectUri=${DISCORD_REDIRECT_URI}
+      - Jwt__Secret=${JWT_SECRET}
+      - Upload__Path=/app/uploads
+      - ACADEMY_REPO_URL=${ACADEMY_REPO_URL}
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:8
+    volumes:
+      - mongodata:/data/db
+    restart: unless-stopped
+
+volumes:
+  uploads:
+  mongodata:
