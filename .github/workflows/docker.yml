@@ -81,6 +81,34 @@ jobs:
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
+      - name: Write ghastly manifest
+        env:
+          TRIGGER: ${{ github.event_name }}
+        run: |
+          SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
+          cat > ghastly-manifest.json << EOF
+          {
+            "schema": "ghastly/v1",
+            "built_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "trigger": "$TRIGGER",
+            "artifacts": [
+              {
+                "name": "frontend",
+                "type": "docker",
+                "version": "$SHORT_SHA",
+                "ref": "ghcr.io/second-soul-studio/second-circuit-profiles-alpha-frontend:sha-$SHORT_SHA"
+              }
+            ]
+          }
+          EOF
+
+      - name: Upload ghastly manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghastly-manifest-frontend
+          path: ghastly-manifest.json
+          retention-days: 7
+
   build-backend:
     name: Build Backend
     runs-on: ubuntu-latest
@@ -142,6 +170,34 @@ jobs:
           TAGS: ${{ steps.meta.outputs.tags }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+
+      - name: Write ghastly manifest
+        env:
+          TRIGGER: ${{ github.event_name }}
+        run: |
+          SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
+          cat > ghastly-manifest.json << EOF
+          {
+            "schema": "ghastly/v1",
+            "built_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "trigger": "$TRIGGER",
+            "artifacts": [
+              {
+                "name": "backend",
+                "type": "docker",
+                "version": "$SHORT_SHA",
+                "ref": "ghcr.io/second-soul-studio/second-circuit-profiles-backend:sha-$SHORT_SHA"
+              }
+            ]
+          }
+          EOF
+
+      - name: Upload ghastly manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghastly-manifest-backend
+          path: ghastly-manifest.json
+          retention-days: 7
 
   report:
     name: Build Report
