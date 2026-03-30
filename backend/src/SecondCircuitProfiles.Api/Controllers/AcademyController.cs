@@ -29,6 +29,17 @@ public class AcademyController(IAcademyService academyService) : ControllerBase
     [ProducesResponseType<AcademyIndex>(StatusCodes.Status200OK)]
     public IActionResult GetIndex() => Ok(academyService.GetIndex());
 
+    [HttpGet("category")]
+    [ProducesResponseType<ArticleIndexEntry[]>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public IActionResult GetCategory([FromQuery] string slug)
+    {
+        if (string.IsNullOrWhiteSpace(slug) || slug.Contains("..") || slug.Contains('/'))
+            return BadRequest();
+
+        return Ok(academyService.GetCategoryArticles(slug));
+    }
+
     [HttpGet("article")]
     [ProducesResponseType<ArticleResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

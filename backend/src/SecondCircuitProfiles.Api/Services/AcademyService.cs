@@ -14,6 +14,7 @@ public interface IAcademyService
 {
     Task<SyncResult> Sync();
     AcademyIndex GetIndex();
+    ArticleIndexEntry[] GetCategoryArticles(string categorySlug);
     ArticleResponse? GetArticle(string path);
     string? GetImagePath(string relativePath);
     Task TrackArticleRead(string articlePath, string visitorUserId);
@@ -26,6 +27,7 @@ public class AcademyService(IOptions<AcademySettings> options, ILogger<AcademySe
 {
     private readonly AcademySettings _settings = options.Value;
     private volatile AcademyIndex _index = new(null, [], [], null, 0);
+    private volatile ArticleIndexEntry[] _allEntries = [];
 
     // Rebuild index from files already on disk (e.g. after a container restart with a persistent volume)
     public void InitialiseFromDisk()
@@ -37,6 +39,7 @@ public class AcademyService(IOptions<AcademySettings> options, ILogger<AcademySe
         try
         {
             var entries = ParseAllArticles(clonePath);
+            _allEntries = [.. entries];
             _index = BuildIndex(entries, DateTime.UtcNow);
             logger.LogInformation("Academy index restored from disk: {Count} published articles.", _index.TotalArticles);
         }
@@ -84,6 +87,7 @@ public class AcademyService(IOptions<AcademySettings> options, ILogger<AcademySe
 
             // Parse all markdown files
             var entries = ParseAllArticles(clonePath);
+            _allEntries = [.. entries];
             _index = BuildIndex(entries, DateTime.UtcNow);
 
             logger.LogInformation("Academy sync complete: {Count} published articles.", _index.TotalArticles);
@@ -99,6 +103,12 @@ public class AcademyService(IOptions<AcademySettings> options, ILogger<AcademySe
     // ── Index & Article access ───────────────────────────────────────────────
 
     public AcademyIndex GetIndex() => _index;
+
+    public ArticleIndexEntry[] GetCategoryArticles(string categorySlug) =>
+        _allEntries
+            .Where(e => string.Equals(e.Category, categorySlug, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(e => e.Metadata.DateCreated)
+            .ToArray();
 
     public ArticleResponse? GetArticle(string path)
     {

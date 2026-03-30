@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getAcademyIndex } from '../lib/api'
+import { getAcademyIndex, getAcademyCategoryArticles } from '../lib/api'
 
 function formatDate(dateStr) {
   if (!dateStr) return null
@@ -22,20 +22,11 @@ export default function AcademyCategory() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    getAcademyIndex()
-      .then((res) => {
-        const index = res.data
-        const cat = index.categories.find((c) => c.slug === category)
+    Promise.all([getAcademyIndex(), getAcademyCategoryArticles(category)])
+      .then(([indexRes, articlesRes]) => {
+        const cat = indexRes.data.categories.find((c) => c.slug === category)
         if (cat) setCategoryName(cat.displayName)
-
-        // Filter all articles (from recentArticles + featuredArticle) by category
-        // Note: the index only has recent articles; we need to call index for all.
-        // For now we get all articles from the categories endpoint — we'll derive them
-        // from the index structure. The backend returns recentArticles (top 5) but
-        // categories have full counts. We query index and filter recentArticles by category.
-        // TODO: if needed, add a GET /api/academy/category?slug=X endpoint later.
-        const filtered = index.recentArticles.filter((a) => a.category === category)
-        setArticles(filtered)
+        setArticles(articlesRes.data)
       })
       .catch(() => setError('Failed to load category.'))
       .finally(() => setLoading(false))

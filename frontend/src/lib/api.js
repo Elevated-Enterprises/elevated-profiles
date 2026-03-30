@@ -216,6 +216,9 @@ export const markAllNotificationsRead = () => api.put('/api/notifications/read-a
 
 export const getAcademyIndex = () => api.get('/api/academy/index')
 
+export const getAcademyCategoryArticles = (slug) =>
+  api.get('/api/academy/category', { params: { slug } })
+
 export const getAcademyArticle = (path) =>
   api.get('/api/academy/article', { params: { path } })
 
