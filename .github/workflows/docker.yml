@@ -6,13 +6,11 @@ on:
     tags: ["v*.*.*"]
   pull_request:
     branches: [main]
-  schedule:
-    - cron: "20 21 * * *"
 
 env:
   REGISTRY: ghcr.io
-  FRONTEND_IMAGE: ghcr.io/second-soul-studio/second-circuit-profiles-alpha-frontend
-  BACKEND_IMAGE: ghcr.io/second-soul-studio/second-circuit-profiles-backend
+  FRONTEND_IMAGE: ghcr.io/elevated-enterprises/elevated-profiles-frontend
+  BACKEND_IMAGE: ghcr.io/elevated-enterprises/elevated-profiles-backend
 
 jobs:
   build-frontend:
@@ -96,7 +94,7 @@ jobs:
                 "name": "frontend",
                 "type": "docker",
                 "version": "$SHORT_SHA",
-                "ref": "ghcr.io/second-soul-studio/second-circuit-profiles-alpha-frontend:sha-$SHORT_SHA"
+                "ref": "ghcr.io/elevated-enterprises/elevated-profiles-frontend:sha-$SHORT_SHA"
               }
             ]
           }
@@ -186,7 +184,7 @@ jobs:
                 "name": "backend",
                 "type": "docker",
                 "version": "$SHORT_SHA",
-                "ref": "ghcr.io/second-soul-studio/second-circuit-profiles-backend:sha-$SHORT_SHA"
+                "ref": "ghcr.io/elevated-enterprises/elevated-profiles-backend:sha-$SHORT_SHA"
               }
             ]
           }
